@@ -1,0 +1,9 @@
+{
+  "status": "error",
+  "last_success_utc": null,
+  "last_attempt_utc": "2026-04-24T13:27:31Z",
+  "last_error": {
+    "code": 0,
+    "message": "Inference reported success but no JSON output was found."
+  }
+}
