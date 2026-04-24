@@ -1,0 +1,66 @@
+# CI runtime configuration — overrides realtime-regression-sw defaults for
+# GitHub Actions runners. Profile is pinned to in2d_out12h_gnn_transformer
+# (2-day lookback, 12-hour / 24-step ap30 forecast).
+#
+# Paths are relative to the vendor/realtime-regression-sw/ working directory.
+# The forecast.yml workflow:
+#   1) downloads checkpoint + stats into ./checkpoint/
+#   2) runs `run_realtime.py --config ../../configs/realtime.ci.yaml` from
+#      vendor/realtime-regression-sw/
+#   3) scripts/update_site_data.py copies results/predictions/* into site/data/.
+
+profile:
+  name: "in2d_out12h_gnn_transformer"
+  io: "in2d_out12h"
+  model: "gnn_transformer"
+
+experiment:
+  name: "in2d_out12h_gnn_transformer"
+
+paths:
+  checkpoint: "./checkpoint/model_best.pth"
+  stats_file: "./checkpoint/table_stats.pkl"
+  event_dir: "./dataset/events"
+  cache_dir: "./dataset/cache"
+  results_dir: "./results"
+
+sources:
+  noaa_plasma_url: "https://services.swpc.noaa.gov/products/solar-wind/plasma-7-day.json"
+  noaa_mag_url:    "https://services.swpc.noaa.gov/products/solar-wind/mag-7-day.json"
+  gfz_hpo_url:     "https://www-app3.gfz-potsdam.de/kp_index/Hp30_ap30_nowcast.txt"
+  download_timeout: 30
+  max_retries: 3
+
+window:
+  lookback_steps: 96
+  forecast_steps: 24
+  boundary_offset_minutes: 2
+
+runtime:
+  device: "cpu"
+  missing_data:
+    max_gap_fraction: 0.10
+    ffill_limit_steps: 2
+    require_recent_steps_present: 3
+    anchor_rollback_max_attempts: 2
+
+# Skip heavyweight side artifacts in CI — the site only needs the JSON payload.
+# MCD and attention can be re-enabled later if the page grows to show them.
+analysis:
+  plot:
+    enable: false
+    history_steps: 96
+    dpi: 120
+  mcd:
+    enable: false
+    num_samples: 100
+    n_std: 2.0
+  attention:
+    enable: false
+    save_npz: false
+
+model_provenance:
+  val_loss_at_train: 0.2727
+  val_mae_at_train: 0.3840
+  val_rmse_at_train: 0.4960
+  trained_on_epoch: 8
