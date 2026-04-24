@@ -23,6 +23,20 @@
   };
   const fmtDual = (iso) => iso ? `${fmtUTC(iso)} / ${fmtKST(iso)}` : "—";
 
+  // Compact UTC formatter for x-axis tick labels (e.g., "Apr 24 13:00").
+  // Chart.js picks tick positions in browser-local time by default; this
+  // callback re-formats the tick value in UTC so axis labels match the
+  // axis title.
+  const fmtTickUTC = (ms) => {
+    const d = new Date(ms);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(d).reduce((acc, p) => (acc[p.type] = p.value, acc), {});
+    return `${parts.month} ${parts.day} ${parts.hour}:${parts.minute}`;
+  };
+
   const showBanner = (kind, text) => {
     const el = $("status-banner");
     el.className = `status-banner ${kind}`;
@@ -166,9 +180,14 @@
       scales: {
         x: {
           type: "time",
-          time: { unit: "hour", displayFormats: { hour: "MMM d HH:mm" } },
+          time: { unit: "hour" },
           title: { display: true, text: "UTC" },
-          ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 10,
+            callback: (value) => fmtTickUTC(value),
+          },
         },
         y: {
           beginAtZero: true,
