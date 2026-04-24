@@ -1,5 +1,5 @@
 {
-  "run_timestamp_utc": "2026-04-24T13:45:36Z",
+  "run_timestamp_utc": "2026-04-24T13:54:57Z",
   "anchor_timestamp_utc": "2026-04-24T13:30:00Z",
   "model": {
     "profile": "in2d_out12h_gnn_transformer",
@@ -16,152 +16,152 @@
       "noaa_mag_url": "https://services.swpc.noaa.gov/products/solar-wind/mag-7-day.json",
       "gfz_hpo_url": "https://www-app3.gfz-potsdam.de/kp_index/Hp30_ap30_nowcast.txt"
     },
-    "missing_data_filled_fraction": 0.001812
+    "missing_data_filled_fraction": 0.000906
   },
   "forecast": [
     {
       "horizon_steps": 1,
       "horizon_minutes": 30,
       "target_timestamp_utc": "2026-04-24T14:00:00Z",
-      "ap30": 9.970428466796875
+      "ap30": 8.964332580566406
     },
     {
       "horizon_steps": 2,
       "horizon_minutes": 60,
       "target_timestamp_utc": "2026-04-24T14:30:00Z",
-      "ap30": 9.702571868896484
+      "ap30": 8.796784400939941
     },
     {
       "horizon_steps": 3,
       "horizon_minutes": 90,
       "target_timestamp_utc": "2026-04-24T15:00:00Z",
-      "ap30": 9.491640090942383
+      "ap30": 8.977685928344727
     },
     {
       "horizon_steps": 4,
       "horizon_minutes": 120,
       "target_timestamp_utc": "2026-04-24T15:30:00Z",
-      "ap30": 9.46165657043457
+      "ap30": 9.073909759521484
     },
     {
       "horizon_steps": 5,
       "horizon_minutes": 150,
       "target_timestamp_utc": "2026-04-24T16:00:00Z",
-      "ap30": 10.131536483764648
+      "ap30": 9.752974510192871
     },
     {
       "horizon_steps": 6,
       "horizon_minutes": 180,
       "target_timestamp_utc": "2026-04-24T16:30:00Z",
-      "ap30": 11.08768081665039
+      "ap30": 10.574624061584473
     },
     {
       "horizon_steps": 7,
       "horizon_minutes": 210,
       "target_timestamp_utc": "2026-04-24T17:00:00Z",
-      "ap30": 11.254119873046875
+      "ap30": 10.709247589111328
     },
     {
       "horizon_steps": 8,
       "horizon_minutes": 240,
       "target_timestamp_utc": "2026-04-24T17:30:00Z",
-      "ap30": 11.731607437133789
+      "ap30": 11.122581481933594
     },
     {
       "horizon_steps": 9,
       "horizon_minutes": 270,
       "target_timestamp_utc": "2026-04-24T18:00:00Z",
-      "ap30": 10.519508361816406
+      "ap30": 10.065503120422363
     },
     {
       "horizon_steps": 10,
       "horizon_minutes": 300,
       "target_timestamp_utc": "2026-04-24T18:30:00Z",
-      "ap30": 8.813318252563477
+      "ap30": 8.605834007263184
     },
     {
       "horizon_steps": 11,
       "horizon_minutes": 330,
       "target_timestamp_utc": "2026-04-24T19:00:00Z",
-      "ap30": 7.776131629943848
+      "ap30": 7.595205783843994
     },
     {
       "horizon_steps": 12,
       "horizon_minutes": 360,
       "target_timestamp_utc": "2026-04-24T19:30:00Z",
-      "ap30": 7.062798500061035
+      "ap30": 6.906867027282715
     },
     {
       "horizon_steps": 13,
       "horizon_minutes": 390,
       "target_timestamp_utc": "2026-04-24T20:00:00Z",
-      "ap30": 7.171262264251709
+      "ap30": 6.829218864440918
     },
     {
       "horizon_steps": 14,
       "horizon_minutes": 420,
       "target_timestamp_utc": "2026-04-24T20:30:00Z",
-      "ap30": 6.972280979156494
+      "ap30": 6.5837721824646
     },
     {
       "horizon_steps": 15,
       "horizon_minutes": 450,
       "target_timestamp_utc": "2026-04-24T21:00:00Z",
-      "ap30": 6.9668450355529785
+      "ap30": 6.6059160232543945
     },
     {
       "horizon_steps": 16,
       "horizon_minutes": 480,
       "target_timestamp_utc": "2026-04-24T21:30:00Z",
-      "ap30": 7.066657543182373
+      "ap30": 6.945070743560791
     },
     {
       "horizon_steps": 17,
       "horizon_minutes": 510,
       "target_timestamp_utc": "2026-04-24T22:00:00Z",
-      "ap30": 6.977724552154541
+      "ap30": 7.014474868774414
     },
     {
       "horizon_steps": 18,
       "horizon_minutes": 540,
       "target_timestamp_utc": "2026-04-24T22:30:00Z",
-      "ap30": 7.601138591766357
+      "ap30": 7.936127662658691
     },
     {
       "horizon_steps": 19,
       "horizon_minutes": 570,
       "target_timestamp_utc": "2026-04-24T23:00:00Z",
-      "ap30": 7.472041130065918
+      "ap30": 7.9158549308776855
     },
     {
       "horizon_steps": 20,
       "horizon_minutes": 600,
       "target_timestamp_utc": "2026-04-24T23:30:00Z",
-      "ap30": 7.660304069519043
+      "ap30": 8.107843399047852
     },
     {
       "horizon_steps": 21,
       "horizon_minutes": 630,
       "target_timestamp_utc": "2026-04-25T00:00:00Z",
-      "ap30": 8.007513999938965
+      "ap30": 8.37291145324707
     },
     {
       "horizon_steps": 22,
       "horizon_minutes": 660,
       "target_timestamp_utc": "2026-04-25T00:30:00Z",
-      "ap30": 8.018460273742676
+      "ap30": 8.307796478271484
     },
     {
       "horizon_steps": 23,
       "horizon_minutes": 690,
       "target_timestamp_utc": "2026-04-25T01:00:00Z",
-      "ap30": 7.979959964752197
+      "ap30": 8.125202178955078
     },
     {
       "horizon_steps": 24,
       "horizon_minutes": 720,
       "target_timestamp_utc": "2026-04-25T01:30:00Z",
-      "ap30": 7.808150768280029
+      "ap30": 7.979217052459717
     }
   ],
   "history": [
@@ -491,7 +491,7 @@
     },
     {
       "timestamp_utc": "2026-04-24T06:30:00Z",
-      "ap30": 4.0
+      "ap30": 5.0
     },
     {
       "timestamp_utc": "2026-04-24T07:00:00Z",
@@ -507,7 +507,7 @@
     },
     {
       "timestamp_utc": "2026-04-24T08:30:00Z",
-      "ap30": 6.0
+      "ap30": 7.0
     },
     {
       "timestamp_utc": "2026-04-24T09:00:00Z",
@@ -515,15 +515,15 @@
     },
     {
       "timestamp_utc": "2026-04-24T09:30:00Z",
-      "ap30": 4.0
-    },
-    {
-      "timestamp_utc": "2026-04-24T10:00:00Z",
       "ap30": 5.0
     },
     {
+      "timestamp_utc": "2026-04-24T10:00:00Z",
+      "ap30": 4.0
+    },
+    {
       "timestamp_utc": "2026-04-24T10:30:00Z",
-      "ap30": 6.0
+      "ap30": 5.0
     },
     {
       "timestamp_utc": "2026-04-24T11:00:00Z",
@@ -535,19 +535,19 @@
     },
     {
       "timestamp_utc": "2026-04-24T12:00:00Z",
-      "ap30": 7.0
+      "ap30": 6.0
     },
     {
       "timestamp_utc": "2026-04-24T12:30:00Z",
-      "ap30": 12.0
+      "ap30": 9.0
     },
     {
       "timestamp_utc": "2026-04-24T13:00:00Z",
-      "ap30": 12.0
+      "ap30": 6.0
     },
     {
       "timestamp_utc": "2026-04-24T13:30:00Z",
-      "ap30": 12.0
+      "ap30": 6.0
     }
   ]
 }
