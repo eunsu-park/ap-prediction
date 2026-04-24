@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Runtime artifacts inside the vendored submodule — pulled fresh each CI run.
+# Listed explicitly because the submodule's own .gitignore lives inside it.
+vendor/realtime-regression-sw/checkpoint/
+vendor/realtime-regression-sw/dataset/
+vendor/realtime-regression-sw/results/
