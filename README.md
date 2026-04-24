@@ -6,7 +6,8 @@ Public dashboard for 12-hour ap30 geomagnetic index forecasts.
 - Deployed site: https://www.eunsu.me/ap-prediction/
   (also at https://eunsu-park.github.io/ap-prediction/)
 - Forecast model: [eunsu-park/realtime-regression-sw](https://github.com/eunsu-park/realtime-regression-sw)
-- Update cadence: every 30 min (cron `7,37 * * * *`)
+- Update cadence: every 30 min (cron `3,33 * * * *`)
+- Architecture details / 상세 설계: [docs/architecture.md](docs/architecture.md)
 
 ## How it works (동작 원리)
 
