@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RESULTS_DIR = REPO_ROOT / "vendor" / "realtime-regression-sw" / "results" / "predictions"
+RESULTS_DIR = REPO_ROOT / "vendor" / "realtime-regression-sw" / "results"
 SITE_DATA_DIR = REPO_ROOT / "site" / "data"
 
 
