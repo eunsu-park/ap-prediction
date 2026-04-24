@@ -85,42 +85,81 @@
     showBanner("ok", "Forecast is current.");
   }
 
-  // Build chart dataset.
+  // Build chart datasets. Historical observations (gray, no markers) are drawn
+  // before the anchor; the forecast (blue, markers) starts at the anchor.
   const forecast = latest.forecast ?? [];
-  const points = forecast.map((e) => ({
+  const history = latest.history ?? [];
+  const forecastPoints = forecast.map((e) => ({
     x: new Date(e.target_timestamp_utc),
     y: e.ap30,
   }));
+  const historyPoints = history.map((e) => ({
+    x: new Date(e.timestamp_utc),
+    y: e.ap30,
+  }));
+
+  // Bridge the last observed point to the first forecast point so the two
+  // segments visually connect at the anchor.
+  const bridge = historyPoints.length > 0 && forecastPoints.length > 0
+    ? [historyPoints[historyPoints.length - 1], forecastPoints[0]]
+    : [];
 
   const ctx = $("forecast-chart").getContext("2d");
   // eslint-disable-next-line no-undef
   new Chart(ctx, {
     type: "line",
     data: {
-      datasets: [{
-        label: "ap30 forecast",
-        data: points,
-        borderColor: "#2563eb",
-        backgroundColor: "#2563eb",
-        borderWidth: 2,
-        pointRadius: 3,
-        tension: 0.15,
-      }],
+      datasets: [
+        {
+          label: "ap30 observed (history)",
+          data: historyPoints,
+          borderColor: "#6b7280",
+          backgroundColor: "#6b7280",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.15,
+        },
+        {
+          label: "ap30 forecast",
+          data: forecastPoints,
+          borderColor: "#2563eb",
+          backgroundColor: "#2563eb",
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0.15,
+        },
+        {
+          label: "bridge",
+          data: bridge,
+          borderColor: "#6b7280",
+          borderWidth: 1.5,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          showLine: true,
+          fill: false,
+          tension: 0,
+        },
+      ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: { filter: (item) => item.text !== "bridge" },
+        },
         tooltip: {
+          filter: (item) => item.dataset.label !== "bridge",
           callbacks: {
             title: (items) => {
               const d = items[0].parsed.x;
               const iso = new Date(d).toISOString();
               return `${fmtUTC(iso)}\n${fmtKST(iso)}`;
             },
-            label: (item) => `ap30 = ${item.parsed.y.toFixed(2)}`,
+            label: (item) => `${item.dataset.label.replace(/\s*\(.*\)$/, "")} = ${item.parsed.y.toFixed(2)}`,
           },
         },
       },
@@ -129,6 +168,7 @@
           type: "time",
           time: { unit: "hour", displayFormats: { hour: "MMM d HH:mm" } },
           title: { display: true, text: "UTC" },
+          ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
         },
         y: {
           beginAtZero: true,
