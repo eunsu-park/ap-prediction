@@ -514,6 +514,85 @@ needed.
 
 가중치만 바뀐 경우(코드 동일)에는 submodule 갱신 불필요.
 
+#### Does the config need to change? / Config는 수정해야 하나?
+
+Short answer: **usually no**. The `configs/realtime.ci.yaml` file
+describes the *model architecture* and the *runtime environment*, not
+the trained weights themselves. So a simple "retrain on more data with
+the same architecture" does **not** require touching the config.
+
+짧은 답: **보통 불필요**. `configs/realtime.ci.yaml`은 **모델 아키텍처**와
+**런타임 환경**을 기술하는 파일이지, 가중치 자체를 기술하지 않습니다. 따라서
+동일 아키텍처로 데이터만 더 넣어서 재학습한 경우에는 config를 손댈 필요가
+**없습니다**.
+
+Here is the full table, by config section:
+섹션별 전체 표:
+
+| Section | Weights only (same architecture) | Architecture/profile change |
+|---------|:-:|:-:|
+| `profile.*`               | unchanged 그대로 | **must update 필수** |
+| `experiment.name`         | unchanged 그대로 | **must update 필수** |
+| `paths.*`                 | unchanged 그대로 | unchanged 그대로 |
+| `sources.*`               | unchanged 그대로 | unchanged 그대로 |
+| `window.lookback_steps`   | unchanged 그대로 | **update if input length changes 입력 길이 변경 시 필수** |
+| `window.forecast_steps`   | unchanged 그대로 | **update if output length changes 출력 길이 변경 시 필수** |
+| `window.boundary_offset_minutes` | unchanged 그대로 | unchanged 그대로 |
+| `runtime.*`               | unchanged 그대로 | unchanged 그대로 |
+| `analysis.*`              | unchanged 그대로 | unchanged 그대로 |
+| `model_provenance.*`      | ⚠️ **recommended 권장** (display-only) | **must update 필수** |
+
+**Why `model_provenance.*` is "recommended" even for same-architecture
+retraining / 동일 아키텍처 재학습에서도 `model_provenance.*` 갱신이 권장되는
+이유**
+
+These three values (`val_loss_at_train`, `val_mae_at_train`,
+`val_rmse_at_train`) are read from config at inference time and copied
+into the output JSON's `model` block (see
+[run_realtime.py:308](https://github.com/eunsu-park/realtime-regression-sw/blob/main/scripts/run_realtime.py#L308)).
+The page renders `val_mae_at_train` under "Val-MAE at train" in the
+metadata block. If you ship new weights without updating these, the
+page will display the **old** MAE alongside the **new** forecasts —
+functionally fine but misleading for visitors.
+
+이 세 값은 추론 시 config에서 읽혀 출력 JSON의 `model` 블록에 그대로 복사되고
+([run_realtime.py:308](https://github.com/eunsu-park/realtime-regression-sw/blob/main/scripts/run_realtime.py#L308)),
+페이지의 "Val-MAE at train"에 표시됩니다. 새 가중치를 적용하면서 이 값을
+갱신하지 않으면 **옛 MAE가 새 예측과 함께 표시**됨 — 기능 문제는 없지만 방문자
+입장에서 오해 소지.
+
+**Concrete examples / 구체적 예시**
+
+- *Retrained `in2d_out12h_gnn_transformer` with 6 more months of data*
+  → no structural config change; optionally update
+  `model_provenance.*` to the new training metrics.
+  동일 아키텍처 `in2d_out12h_gnn_transformer`에 데이터 6개월 추가해서 재학습
+  → 구조 변경 없음. `model_provenance.*`만 선택적 갱신.
+- *Switched profile from `in2d_out12h_gnn_transformer` to
+  `in12h_out12h_gnn_patchtst`* → must update `profile.*`,
+  `experiment.name`, `window.lookback_steps` (96 → 24), and
+  `model_provenance.*`.
+  프로파일을 `in2d_out12h_gnn_transformer` → `in12h_out12h_gnn_patchtst`로
+  전환 → `profile.*`, `experiment.name`, `window.lookback_steps`(96 → 24),
+  `model_provenance.*` 모두 갱신 필요.
+- *Changed forecast horizon from 12h to 6h (new profile
+  `in2d_out6h_gnn_transformer`)* → update `profile.*`,
+  `experiment.name`, `window.forecast_steps` (24 → 12), and
+  `model_provenance.*`.
+  예측 horizon을 12h → 6h로 변경 → `profile.*`, `experiment.name`,
+  `window.forecast_steps`(24 → 12), `model_provenance.*` 갱신.
+
+**Atomicity / 원자성**
+
+When the architecture changes, commit the config change **together
+with** the `ASSETS_TAG` bump in a single commit. Otherwise the
+workflow will temporarily try to run new weights against the old
+architecture (or vice versa) and crash.
+
+아키텍처가 바뀌는 경우에는 config 변경과 `ASSETS_TAG` 변경을 **같은 커밋에
+원자적으로** 반영하세요. 그렇지 않으면 워크플로가 잠시 신·구 불일치 상태에서
+크래시합니다.
+
 #### Common pitfalls / 흔한 실수
 
 | Pitfall | Symptom | Fix |
