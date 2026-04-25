@@ -2,10 +2,10 @@ name: Forecast
 
 on:
   schedule:
-    # :03 and :33 of every hour — aligned with GFZ 30-min nowcast cadence.
-    # Minutes were shifted from :07/:37 to :03/:33 to avoid the Actions
-    # scheduler's hour-boundary congestion, which was causing ~23-min drift.
-    - cron: '3,33 * * * *'
+    # :08 and :38 of every hour — aligned with GFZ 30-min nowcast cadence,
+    # with an offset that gives publishers time to post and absorbs Actions
+    # scheduler drift.
+    - cron: '8,38 * * * *'
   workflow_dispatch:
     inputs:
       now:
