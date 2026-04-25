@@ -10,12 +10,12 @@
 #   3) scripts/update_site_data.py copies results/predictions/* into site/data/.
 
 profile:
-  name: "in2d_out12h_gnn_transformer"
-  io: "in2d_out12h"
-  model: "gnn_transformer"
+  name: "in12h_out12h_gnn_patchtst"
+  io: "in12h_out12h"          # 12-hour input (24 steps), 12-hour output (24 steps)
+  model: "gnn_patchtst"       # GNN with PatchTST temporal backend
 
 experiment:
-  name: "in2d_out12h_gnn_transformer"
+  name: "in12h_out12h_gnn_patchtst"
 
 paths:
   checkpoint: "./checkpoint/model_best.pth"
@@ -32,8 +32,8 @@ sources:
   max_retries: 3
 
 window:
-  lookback_steps: 96
-  forecast_steps: 24
+  lookback_steps: 24          # 12 hours × 2 steps/hour
+  forecast_steps: 24          # 12 hours × 2 steps/hour
   boundary_offset_minutes: 2
 
 runtime:
@@ -60,7 +60,7 @@ analysis:
     save_npz: false
 
 model_provenance:
-  val_loss_at_train: 0.2727
-  val_mae_at_train: 0.3840
-  val_rmse_at_train: 0.4960
-  trained_on_epoch: 8
+  val_loss_at_train: 0.245454
+  val_mae_at_train: 0.3781     # ap30-specific MAE
+  val_rmse_at_train: 0.4956    # ap30-specific RMSE
+  trained_on_epoch: 9

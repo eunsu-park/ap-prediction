@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ASSETS_TAG: v0.1.0-assets
+  ASSETS_TAG: v0.1.1-assets
   REALTIME_REPO: eunsu-park/realtime-regression-sw
 
 jobs:
