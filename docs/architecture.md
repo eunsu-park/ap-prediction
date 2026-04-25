@@ -323,27 +323,214 @@ showing the last successful forecast with the warning banner on top.
 - CI 캐시가 릴리즈 태그당 한 번만 다운로드하고 이후 재사용 — 정상 상태에서
   추가 비용 0
 
-### 5.2 Retraining protocol / 재학습 절차
+### 5.2 Updating the checkpoint / 체크포인트 갱신 절차
 
-1. Retrain `realtime-regression-sw` → produces new `model_best.pth` and
-   `table_stats.pkl`.
-2. Upload both as assets on a **new Release** (e.g. `v0.2.0-assets`) on
-   `eunsu-park/realtime-regression-sw`.
-3. Bump `env.ASSETS_TAG` in `.github/workflows/forecast.yml` of
-   `ap-prediction`.
-4. Optional but recommended: advance the submodule pin to the matching
-   commit in `realtime-regression-sw`.
-5. Push → the next scheduled run will invalidate the cache, redownload
-   the new assets, and start forecasting with the new model.
+This is the runbook for replacing `model_best.pth` and
+`table_stats.pkl` with a newly trained pair. The whole operation is
+driven by **one env-var bump in the workflow file** — no direct file
+movement is needed.
 
-1. `realtime-regression-sw` 재학습 → 새 `model_best.pth`와
-   `table_stats.pkl` 생성.
-2. `eunsu-park/realtime-regression-sw`에 새 Release
-   (예: `v0.2.0-assets`)를 만들고 두 파일 첨부.
-3. `ap-prediction`의 `.github/workflows/forecast.yml`에서
-   `env.ASSETS_TAG` 값 갱신.
-4. (선택 권장) submodule pin을 해당 커밋으로 이동.
-5. 푸시 → 다음 cron이 캐시 무효화 후 새 모델로 예측 시작.
+재학습된 `model_best.pth` / `table_stats.pkl` 쌍으로 교체하는 런북입니다.
+전체 작업은 **워크플로 파일의 env 값 한 줄 변경**으로 구동되며, 파일을 직접
+이동/복사할 필요가 없습니다.
+
+#### Overview / 개요
+
+```
+①  Prepare the new matched pair   .pth 와 .pkl 페어 준비
+       ↓
+②  Create a new Release in        realtime-regression-sw에 새 Release 생성
+   realtime-regression-sw         (반드시 새 태그)
+   (MUST be a new tag)
+       ↓
+③  Bump ASSETS_TAG in             ap-prediction workflow의
+   ap-prediction's workflow       ASSETS_TAG 값 변경
+       ↓
+④  Commit + push                  커밋 + 푸시
+       ↓
+⑤  Manually trigger the run,      수동 실행 후 페이지에서
+   verify new checkpoint SHA      Checkpoint SHA 확인
+   on the page
+```
+
+#### Step ① — prepare the files / 파일 준비
+
+- Collect the new `model_best.pth` and `table_stats.pkl` from the
+  retraining run. Any local path is fine — they only need to exist for
+  upload.
+  재학습 실행에서 새 두 파일을 수집. 업로드 가능하면 아무 로컬 경로나 가능.
+- **They must be a matched pair.** Mismatched files (different
+  training runs) cause silently miscalibrated forecasts; there is no
+  runtime check that enforces the pairing. See
+  [runtime-invariants.md §3](https://github.com/eunsu-park/realtime-regression-sw/blob/main/docs/realtime-regression-sw/runtime-invariants.md#normalization-coupling).
+  **반드시 매칭 페어**여야 함. 불일치 시 조용히 miscalibrated 예측이 나오며,
+  런타임 검증이 없음.
+
+#### Step ② — create a new Release / 새 Release 생성
+
+Open **https://github.com/eunsu-park/realtime-regression-sw/releases/new**
+and fill in:
+
+| Field | Value |
+|-------|-------|
+| Tag | **A brand new tag**, e.g. `v0.2.0-assets`. Never reuse the old tag. |
+| Target | `main` (or whichever commit the training code corresponds to) |
+| Title | `v0.2.0 runtime assets` (any descriptive string) |
+| Description | (optional) training data range, val-MAE, hyperparams |
+| Attach binaries | Drag-drop `model_best.pth` and `table_stats.pkl` |
+
+| 필드 | 값 |
+|------|---|
+| Tag | **새로운 태그** (예: `v0.2.0-assets`). 기존 태그 재사용 금지 |
+| Target | `main` (또는 학습 코드 시점의 커밋) |
+| Title | 자유롭게 (예: `v0.2.0 runtime assets`) |
+| Description | (선택) 학습 데이터 범위, val-MAE, 하이퍼파라미터 |
+| Attach binaries | `model_best.pth` + `table_stats.pkl` 드래그 드롭 |
+
+Click **Publish release**.
+
+> ⚠️ **Never reuse the existing tag.** The CI cache key is
+> `release-${ASSETS_TAG}` — overwriting assets under the same tag does
+> not invalidate the cache, so the old files would keep being served
+> indefinitely. Always create a new tag.
+>
+> ⚠️ **기존 태그 재사용 절대 금지.** CI 캐시 키가 `release-${ASSETS_TAG}`라
+> 같은 태그에 파일만 덮어써도 캐시가 갱신되지 않아 구 파일이 계속 사용됨.
+> 반드시 새 태그 생성.
+
+#### Step ③ — bump `ASSETS_TAG` / ASSETS_TAG 값 변경
+
+Edit `.github/workflows/forecast.yml` in this repo:
+
+```yaml
+env:
+  ASSETS_TAG: v0.1.0-assets     # old → new
+  REALTIME_REPO: eunsu-park/realtime-regression-sw
+```
+
+becomes / 변경 후:
+
+```yaml
+env:
+  ASSETS_TAG: v0.2.0-assets
+  REALTIME_REPO: eunsu-park/realtime-regression-sw
+```
+
+This is the only line that needs to change.
+변경이 필요한 유일한 라인입니다.
+
+#### Step ④ — commit and push / 커밋 + 푸시
+
+```bash
+cd ap-prediction
+git add .github/workflows/forecast.yml
+git commit -m "Bump ASSETS_TAG to v0.2.0-assets"
+git push
+```
+
+#### Step ⑤ — manually trigger and verify / 수동 실행 + 검증
+
+1. Go to **https://github.com/eunsu-park/ap-prediction/actions** →
+   **Forecast** → **Run workflow**. Leave `now` empty; click
+   **Run workflow**.
+2. Wait 1–2 minutes. Because the cache key changed, the workflow will
+   hit a cache miss and execute the `Download checkpoint + stats`
+   step — confirm this in the run log.
+3. Once the run is green, hard-refresh the deployed page
+   (`Cmd+Shift+R` / `Ctrl+F5`):
+   **https://www.eunsu.me/ap-prediction/**
+4. Check the **"Checkpoint SHA"** field in the metadata block. It
+   should now show the first 12 characters of the new `model_best.pth`
+   SHA256 — different from the previous value.
+
+단계별:
+1. Actions → Forecast → **Run workflow** (`now` 빈 칸, **Run workflow** 확정)
+2. 1–2분 대기. 캐시 키가 바뀌어 `Download checkpoint + stats` 단계가 실행되는지
+   로그에서 확인.
+3. 성공 후 페이지 하드 리프레시.
+4. 메타데이터 블록의 **Checkpoint SHA**가 새 값으로 바뀌었는지 확인.
+
+#### Cache invalidation, explained / 캐시 무효화 원리
+
+The workflow caches the `checkpoint/` directory using
+`actions/cache@v4` with the key `release-${{ env.ASSETS_TAG }}`. The
+cache is a key-value store, keyed on the literal string:
+
+워크플로는 `checkpoint/` 디렉토리를 `actions/cache@v4`로 캐싱하며, 키는
+`release-${{ env.ASSETS_TAG }}` 문자열 그대로입니다:
+
+- `ASSETS_TAG=v0.1.0-assets` → key `release-v0.1.0-assets`
+- `ASSETS_TAG=v0.2.0-assets` → key `release-v0.2.0-assets` (brand new,
+  forces fresh download)
+
+So **changing the tag string is the mechanism that invalidates the
+cache.** You do not need to manually clear anything.
+
+**태그 문자열 변경 자체가 캐시 무효화의 트리거**이며, 별도 캐시 삭제 작업
+불필요.
+
+#### Rolling back / 롤백
+
+If the new model misbehaves, reverting is symmetric:
+
+문제 발생 시 롤백은 대칭적입니다:
+
+```bash
+# Edit .github/workflows/forecast.yml, set ASSETS_TAG back to v0.1.0-assets
+git add .github/workflows/forecast.yml
+git commit -m "Revert ASSETS_TAG to v0.1.0-assets"
+git push
+# Manually trigger the workflow
+```
+
+Old releases remain available unless explicitly deleted, so rollback is
+immediate. Keep the old Release around for at least a few forecast
+cycles after a bump.
+
+Release를 삭제하지 않는 한 즉시 롤백 가능. 교체 후 몇 주기 동안은 구 Release를
+유지 권장.
+
+#### Code changes alongside the weights / 모델 코드도 바뀐 경우
+
+If the retraining also changed the `realtime-regression-sw` source code
+(new architecture, different variable order, etc.), advance the
+submodule pin as well:
+
+재학습 시 `realtime-regression-sw`의 코드(아키텍처, 변수 순서 등)도 함께
+바뀌었다면 submodule pin도 이동시키세요:
+
+```bash
+cd vendor/realtime-regression-sw
+git fetch
+git checkout <new-commit-or-tag>
+cd ../..
+git add vendor/realtime-regression-sw
+git commit -m "Pin realtime-regression-sw to <new-ref>"
+git push
+```
+
+If only the weights changed (same code), no submodule update is
+needed.
+
+가중치만 바뀐 경우(코드 동일)에는 submodule 갱신 불필요.
+
+#### Common pitfalls / 흔한 실수
+
+| Pitfall | Symptom | Fix |
+|---------|---------|-----|
+| Reused old tag | New weights never take effect; Checkpoint SHA unchanged | Delete the reused-tag Release, recreate with a new tag, bump ASSETS_TAG again |
+| Forgot to change ASSETS_TAG | Same symptom | Bump `ASSETS_TAG` to the new tag and push |
+| Uploaded only the .pth, not the .pkl | Inference fails with stats-file not-found error | Edit the Release, attach the missing `table_stats.pkl` |
+| Mismatched pair (different training runs) | Inference succeeds, but predictions look off (systematic bias) | Re-upload the correct matching pair as a new tag |
+| Submodule advanced but ASSETS_TAG not bumped | Inference may crash if the new code expects different input features than the old weights | Align: bump ASSETS_TAG to a Release whose weights match the submodule's code |
+
+| 실수 | 증상 | 해결 |
+|------|------|-----|
+| 기존 태그 재사용 | 새 가중치 반영 안 됨, Checkpoint SHA 불변 | 해당 Release 삭제, 새 태그로 재생성, ASSETS_TAG 다시 갱신 |
+| ASSETS_TAG 변경 누락 | 동일 증상 | `ASSETS_TAG`를 새 태그로 변경 후 푸시 |
+| .pth만 업로드, .pkl 누락 | stats-file not-found 에러로 추론 실패 | Release 편집, `table_stats.pkl` 추가 첨부 |
+| 페어 불일치 (다른 학습 실행) | 추론 성공하지만 예측에 체계적 편향 | 올바른 페어로 새 태그 재업로드 |
+| Submodule은 갱신했는데 ASSETS_TAG는 그대로 | 새 코드가 구 가중치와 입력 feature가 달라 추론 크래시 가능 | submodule과 일치하는 가중치를 가진 Release로 ASSETS_TAG 정렬 |
 
 ---
 
