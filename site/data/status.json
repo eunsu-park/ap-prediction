@@ -1,9 +1,6 @@
 {
-  "status": "error",
-  "last_success_utc": "2026-04-27T10:26:39Z",
-  "last_attempt_utc": "2026-04-27T11:22:19Z",
-  "last_error": {
-    "code": 1,
-    "message": "Inference exited with code 1."
-  }
+  "status": "ok",
+  "last_success_utc": "2026-04-27T12:10:53Z",
+  "last_attempt_utc": "2026-04-27T12:10:53Z",
+  "last_error": null
 }
