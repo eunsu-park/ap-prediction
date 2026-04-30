@@ -158,7 +158,7 @@
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: { mode: "index", intersect: false },
+      interaction: { mode: "nearest", intersect: false, axis: "x" },
       plugins: {
         legend: {
           display: true,
