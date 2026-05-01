@@ -1,6 +1,6 @@
 {
-  "run_timestamp_utc": "2026-05-01T19:04:37Z",
-  "anchor_timestamp_utc": "2026-05-01T19:00:00Z",
+  "run_timestamp_utc": "2026-05-01T19:38:56Z",
+  "anchor_timestamp_utc": "2026-05-01T19:30:00Z",
   "model": {
     "profile": "in12h_out12h_gnn_patchtst",
     "checkpoint_path": "checkpoint/model_best.pth",
@@ -10,7 +10,7 @@
     "val_rmse_at_train": 0.4956
   },
   "input": {
-    "event_csv": "/home/runner/work/ap-prediction/ap-prediction/vendor/realtime-regression-sw/dataset/events/20260501190000.csv",
+    "event_csv": "/home/runner/work/ap-prediction/ap-prediction/vendor/realtime-regression-sw/dataset/events/20260501193000.csv",
     "sources": {
       "noaa_plasma_url": "https://services.swpc.noaa.gov/products/solar-wind/plasma-7-day.json",
       "noaa_mag_url": "https://services.swpc.noaa.gov/products/solar-wind/mag-7-day.json",
@@ -22,153 +22,149 @@
     {
       "horizon_steps": 1,
       "horizon_minutes": 30,
-      "target_timestamp_utc": "2026-05-01T19:30:00Z",
-      "ap30": 7.049240589141846
+      "target_timestamp_utc": "2026-05-01T20:00:00Z",
+      "ap30": 7.564868927001953
     },
     {
       "horizon_steps": 2,
       "horizon_minutes": 60,
-      "target_timestamp_utc": "2026-05-01T20:00:00Z",
-      "ap30": 6.805217266082764
+      "target_timestamp_utc": "2026-05-01T20:30:00Z",
+      "ap30": 7.167423248291016
     },
     {
       "horizon_steps": 3,
       "horizon_minutes": 90,
-      "target_timestamp_utc": "2026-05-01T20:30:00Z",
-      "ap30": 6.791479110717773
+      "target_timestamp_utc": "2026-05-01T21:00:00Z",
+      "ap30": 7.1002397537231445
     },
     {
       "horizon_steps": 4,
       "horizon_minutes": 120,
-      "target_timestamp_utc": "2026-05-01T21:00:00Z",
-      "ap30": 6.687265396118164
+      "target_timestamp_utc": "2026-05-01T21:30:00Z",
+      "ap30": 7.020201206207275
     },
     {
       "horizon_steps": 5,
       "horizon_minutes": 150,
-      "target_timestamp_utc": "2026-05-01T21:30:00Z",
-      "ap30": 6.937614917755127
+      "target_timestamp_utc": "2026-05-01T22:00:00Z",
+      "ap30": 7.443946361541748
     },
     {
       "horizon_steps": 6,
       "horizon_minutes": 180,
-      "target_timestamp_utc": "2026-05-01T22:00:00Z",
-      "ap30": 7.321986675262451
+      "target_timestamp_utc": "2026-05-01T22:30:00Z",
+      "ap30": 7.666882514953613
     },
     {
       "horizon_steps": 7,
       "horizon_minutes": 210,
-      "target_timestamp_utc": "2026-05-01T22:30:00Z",
-      "ap30": 7.4222259521484375
+      "target_timestamp_utc": "2026-05-01T23:00:00Z",
+      "ap30": 8.304901123046875
     },
     {
       "horizon_steps": 8,
       "horizon_minutes": 240,
-      "target_timestamp_utc": "2026-05-01T23:00:00Z",
-      "ap30": 7.96124792098999
+      "target_timestamp_utc": "2026-05-01T23:30:00Z",
+      "ap30": 9.325719833374023
     },
     {
       "horizon_steps": 9,
       "horizon_minutes": 270,
-      "target_timestamp_utc": "2026-05-01T23:30:00Z",
-      "ap30": 9.272928237915039
+      "target_timestamp_utc": "2026-05-02T00:00:00Z",
+      "ap30": 10.944997787475586
     },
     {
       "horizon_steps": 10,
       "horizon_minutes": 300,
-      "target_timestamp_utc": "2026-05-02T00:00:00Z",
-      "ap30": 10.286195755004883
+      "target_timestamp_utc": "2026-05-02T00:30:00Z",
+      "ap30": 11.676100730895996
     },
     {
       "horizon_steps": 11,
       "horizon_minutes": 330,
-      "target_timestamp_utc": "2026-05-02T00:30:00Z",
-      "ap30": 9.92729377746582
+      "target_timestamp_utc": "2026-05-02T01:00:00Z",
+      "ap30": 10.397550582885742
     },
     {
       "horizon_steps": 12,
       "horizon_minutes": 360,
-      "target_timestamp_utc": "2026-05-02T01:00:00Z",
-      "ap30": 10.178560256958008
+      "target_timestamp_utc": "2026-05-02T01:30:00Z",
+      "ap30": 10.264888763427734
     },
     {
       "horizon_steps": 13,
       "horizon_minutes": 390,
-      "target_timestamp_utc": "2026-05-02T01:30:00Z",
-      "ap30": 10.18648624420166
+      "target_timestamp_utc": "2026-05-02T02:00:00Z",
+      "ap30": 10.229907989501953
     },
     {
       "horizon_steps": 14,
       "horizon_minutes": 420,
-      "target_timestamp_utc": "2026-05-02T02:00:00Z",
-      "ap30": 10.22577953338623
+      "target_timestamp_utc": "2026-05-02T02:30:00Z",
+      "ap30": 10.720888137817383
     },
     {
       "horizon_steps": 15,
       "horizon_minutes": 450,
-      "target_timestamp_utc": "2026-05-02T02:30:00Z",
-      "ap30": 10.61697006225586
+      "target_timestamp_utc": "2026-05-02T03:00:00Z",
+      "ap30": 11.229361534118652
     },
     {
       "horizon_steps": 16,
       "horizon_minutes": 480,
-      "target_timestamp_utc": "2026-05-02T03:00:00Z",
-      "ap30": 10.123842239379883
+      "target_timestamp_utc": "2026-05-02T03:30:00Z",
+      "ap30": 10.82522964477539
     },
     {
       "horizon_steps": 17,
       "horizon_minutes": 510,
-      "target_timestamp_utc": "2026-05-02T03:30:00Z",
-      "ap30": 9.882455825805664
+      "target_timestamp_utc": "2026-05-02T04:00:00Z",
+      "ap30": 10.689409255981445
     },
     {
       "horizon_steps": 18,
       "horizon_minutes": 540,
-      "target_timestamp_utc": "2026-05-02T04:00:00Z",
-      "ap30": 9.05672836303711
+      "target_timestamp_utc": "2026-05-02T04:30:00Z",
+      "ap30": 10.204572677612305
     },
     {
       "horizon_steps": 19,
       "horizon_minutes": 570,
-      "target_timestamp_utc": "2026-05-02T04:30:00Z",
-      "ap30": 8.037847518920898
+      "target_timestamp_utc": "2026-05-02T05:00:00Z",
+      "ap30": 8.818671226501465
     },
     {
       "horizon_steps": 20,
       "horizon_minutes": 600,
-      "target_timestamp_utc": "2026-05-02T05:00:00Z",
-      "ap30": 6.81952428817749
+      "target_timestamp_utc": "2026-05-02T05:30:00Z",
+      "ap30": 7.648060321807861
     },
     {
       "horizon_steps": 21,
       "horizon_minutes": 630,
-      "target_timestamp_utc": "2026-05-02T05:30:00Z",
-      "ap30": 6.3200788497924805
+      "target_timestamp_utc": "2026-05-02T06:00:00Z",
+      "ap30": 6.956406593322754
     },
     {
       "horizon_steps": 22,
       "horizon_minutes": 660,
-      "target_timestamp_utc": "2026-05-02T06:00:00Z",
-      "ap30": 6.10219669342041
+      "target_timestamp_utc": "2026-05-02T06:30:00Z",
+      "ap30": 6.747679233551025
     },
     {
       "horizon_steps": 23,
       "horizon_minutes": 690,
-      "target_timestamp_utc": "2026-05-02T06:30:00Z",
-      "ap30": 5.611702919006348
+      "target_timestamp_utc": "2026-05-02T07:00:00Z",
+      "ap30": 6.38096809387207
     },
     {
       "horizon_steps": 24,
       "horizon_minutes": 720,
-      "target_timestamp_utc": "2026-05-02T07:00:00Z",
-      "ap30": 5.243558883666992
+      "target_timestamp_utc": "2026-05-02T07:30:00Z",
+      "ap30": 5.945825576782227
     }
   ],
   "history": [
-    {
-      "timestamp_utc": "2026-05-01T07:30:00Z",
-      "ap30": 12.0
-    },
     {
       "timestamp_utc": "2026-05-01T08:00:00Z",
       "ap30": 12.0
@@ -223,7 +219,7 @@
     },
     {
       "timestamp_utc": "2026-05-01T14:30:00Z",
-      "ap30": 4.0
+      "ap30": 3.0
     },
     {
       "timestamp_utc": "2026-05-01T15:00:00Z",
@@ -255,11 +251,15 @@
     },
     {
       "timestamp_utc": "2026-05-01T18:30:00Z",
-      "ap30": 9.0
+      "ap30": 15.0
     },
     {
       "timestamp_utc": "2026-05-01T19:00:00Z",
-      "ap30": 9.0
+      "ap30": 15.0
+    },
+    {
+      "timestamp_utc": "2026-05-01T19:30:00Z",
+      "ap30": 15.0
     }
   ]
 }
