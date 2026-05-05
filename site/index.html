@@ -71,22 +71,11 @@
 <div class="container">
 
   <header>
-    <h1>ap30 Forecast <span style="font-weight:400; font-size:1.1rem; color:var(--fg-muted)">(지자기 예보)</span></h1>
+    <h1>ap30 Forecast</h1>
     <p>12-hour ap30 forecast from <code>realtime-regression-sw</code>, updated every 30 minutes.</p>
   </header>
 
   <div id="status-banner" class="status-banner"></div>
-
-  <section class="card">
-    <div class="meta" id="meta">
-      <div class="row"><span class="label">Anchor time (기준 시각)</span><span class="value" id="meta-anchor">—</span></div>
-      <div class="row"><span class="label">Run time (실행 시각)</span><span class="value" id="meta-run">—</span></div>
-      <div class="row"><span class="label">Model (모델)</span><span class="value" id="meta-model">—</span></div>
-      <div class="row"><span class="label">Val-MAE at train</span><span class="value" id="meta-mae">—</span></div>
-      <div class="row"><span class="label">Missing filled</span><span class="value" id="meta-missing">—</span></div>
-      <div class="row"><span class="label">Checkpoint SHA</span><span class="value" id="meta-sha">—</span></div>
-    </div>
-  </section>
 
   <section class="card">
     <div class="chart-wrap">
@@ -98,6 +87,11 @@
     Source: NOAA SWPC + GFZ Hp30/ap30 nowcast.
     Repo: <a href="https://github.com/eunsu-park/ap-prediction">github.com/eunsu-park/ap-prediction</a>.
     Last fetched: <span id="last-fetched">—</span>.
+    <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border);">
+      Developed by:
+      <div>Eunsu Park / Korea Astronomy and Space Science Institute (KASI)</div>
+      <div>Harim Lee / New Jersey Institute of Technology (NJIT)</div>
+    </div>
   </footer>
 
 </div>
