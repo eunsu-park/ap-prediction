@@ -66,19 +66,8 @@
     return;
   }
 
-  // Populate metadata block.
-  $("meta-anchor").textContent = fmtDual(latest.anchor_timestamp_utc);
-  $("meta-run").textContent = fmtDual(latest.run_timestamp_utc);
-  $("meta-model").textContent = latest.model?.profile ?? "—";
-  $("meta-mae").textContent =
-    latest.model?.val_mae_at_train != null
-      ? latest.model.val_mae_at_train.toFixed(4)
-      : "—";
+  // Read input fill fraction for banner logic (metadata panel removed from UI).
   const filled = latest.input?.missing_data_filled_fraction;
-  $("meta-missing").textContent =
-    filled != null ? `${(filled * 100).toFixed(1)}%` : "—";
-  const sha = latest.model?.checkpoint_sha256 ?? "";
-  $("meta-sha").textContent = sha ? sha.slice(0, 12) : "—";
   $("last-fetched").textContent = fmtDual(new Date().toISOString());
 
   // Banner precedence: explicit status error/warn > staleness > data-quality.
