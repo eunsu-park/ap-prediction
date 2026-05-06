@@ -101,6 +101,23 @@
     y: e.ap30,
   }));
 
+  // MCD uncertainty band. The realtime pipeline writes parallel arrays under
+  // analysis.mcd aligned to forecast horizon index; absent on older payloads.
+  const mcd = latest.analysis?.mcd;
+  const nStd = mcd?.n_std ?? 2;
+  const lowerArr = mcd?.lower ?? [];
+  const upperArr = mcd?.upper ?? [];
+  const hasBand =
+    lowerArr.length === forecastPoints.length &&
+    upperArr.length === forecastPoints.length &&
+    forecastPoints.length > 0;
+  const uncertaintyLower = hasBand
+    ? forecastPoints.map((p, i) => ({ x: p.x, y: lowerArr[i] }))
+    : [];
+  const uncertaintyUpper = hasBand
+    ? forecastPoints.map((p, i) => ({ x: p.x, y: upperArr[i] }))
+    : [];
+
   // Bridge the last observed point to the first forecast point so the two
   // segments visually connect at the anchor.
   const bridge = historyPoints.length > 0 && forecastPoints.length > 0
@@ -120,6 +137,23 @@
           backgroundColor: "#6b7280",
           borderWidth: 1.5,
           pointRadius: 0,
+          tension: 0.15,
+        },
+        {
+          label: "uncertainty lower",
+          data: uncertaintyLower,
+          borderColor: "rgba(37, 99, 235, 0)",
+          pointRadius: 0,
+          fill: false,
+          tension: 0.15,
+        },
+        {
+          label: `uncertainty (±${nStd}σ)`,
+          data: uncertaintyUpper,
+          borderColor: "rgba(37, 99, 235, 0)",
+          backgroundColor: "rgba(37, 99, 235, 0.15)",
+          pointRadius: 0,
+          fill: "-1",
           tension: 0.15,
         },
         {
@@ -152,10 +186,15 @@
         legend: {
           display: true,
           position: "bottom",
-          labels: { filter: (item) => item.text !== "bridge" },
+          labels: {
+            filter: (item) =>
+              item.text !== "bridge" && item.text !== "uncertainty lower",
+          },
         },
         tooltip: {
-          filter: (item) => item.dataset.label !== "bridge",
+          filter: (item) =>
+            item.dataset.label !== "bridge" &&
+            item.dataset.label !== "uncertainty lower",
           callbacks: {
             title: (items) => {
               const d = items[0].parsed.x;
