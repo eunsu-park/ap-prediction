@@ -44,15 +44,15 @@ runtime:
     require_recent_steps_present: 3
     anchor_rollback_max_attempts: 2
 
-# Skip heavyweight side artifacts in CI — the site only needs the JSON payload.
-# MCD and attention can be re-enabled later if the page grows to show them.
+# MCD enabled so the site can render ±2σ uncertainty bands on the forecast.
+# Plot and attention artifacts are still skipped — the site only needs JSON.
 analysis:
   plot:
     enable: false
     history_steps: 96
     dpi: 120
   mcd:
-    enable: false
+    enable: true
     num_samples: 100
     n_std: 2.0
   attention:
