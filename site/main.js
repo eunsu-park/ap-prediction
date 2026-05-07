@@ -133,8 +133,8 @@
         {
           label: "ap30 observed (history)",
           data: historyPoints,
-          borderColor: "#6b7280",
-          backgroundColor: "#6b7280",
+          borderColor: "#dc2626",
+          backgroundColor: "#dc2626",
           borderWidth: 1.5,
           pointRadius: 0,
           tension: 0.15,
@@ -142,7 +142,7 @@
         {
           label: "uncertainty lower",
           data: uncertaintyLower,
-          borderColor: "rgba(37, 99, 235, 0)",
+          borderColor: "rgba(107, 114, 128, 0)",
           pointRadius: 0,
           fill: false,
           tension: 0.15,
@@ -150,8 +150,8 @@
         {
           label: `uncertainty (±${nStd}σ)`,
           data: uncertaintyUpper,
-          borderColor: "rgba(37, 99, 235, 0)",
-          backgroundColor: "rgba(37, 99, 235, 0.15)",
+          borderColor: "rgba(107, 114, 128, 0)",
+          backgroundColor: "rgba(107, 114, 128, 0.2)",
           pointRadius: 0,
           fill: "-1",
           tension: 0.15,
