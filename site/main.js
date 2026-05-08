@@ -104,7 +104,6 @@
   // MCD uncertainty band. The realtime pipeline writes parallel arrays under
   // analysis.mcd aligned to forecast horizon index; absent on older payloads.
   const mcd = latest.analysis?.mcd;
-  const nStd = mcd?.n_std ?? 2;
   const lowerArr = mcd?.lower ?? [];
   const upperArr = mcd?.upper ?? [];
   const hasBand =
@@ -131,7 +130,7 @@
     data: {
       datasets: [
         {
-          label: "ap30 observed (history)",
+          label: "observed ap30 (history)",
           data: historyPoints,
           borderColor: "#dc2626",
           backgroundColor: "#dc2626",
@@ -148,7 +147,7 @@
           tension: 0.15,
         },
         {
-          label: `uncertainty (±${nStd}σ)`,
+          label: "uncertainty",
           data: uncertaintyUpper,
           borderColor: "rgba(107, 114, 128, 0)",
           backgroundColor: "rgba(107, 114, 128, 0.2)",
@@ -157,7 +156,7 @@
           tension: 0.15,
         },
         {
-          label: "ap30 forecast",
+          label: "predicted ap30 (future)",
           data: forecastPoints,
           borderColor: "#2563eb",
           backgroundColor: "#2563eb",
@@ -189,6 +188,16 @@
           labels: {
             filter: (item) =>
               item.text !== "bridge" && item.text !== "uncertainty lower",
+            // Display legend in this fixed order regardless of dataset
+            // array order (which is constrained by draw order + fill refs).
+            sort: (a, b) => {
+              const order = [
+                "observed ap30 (history)",
+                "predicted ap30 (future)",
+                "uncertainty",
+              ];
+              return order.indexOf(a.text) - order.indexOf(b.text);
+            },
           },
         },
         tooltip: {
