@@ -31,6 +31,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import subprocess
 import sys
@@ -64,7 +65,22 @@ REWRITES = [
     ("eunsu-park/realtime-regression-sw", "njit-research/ap-prediction"),
     ("www.eunsu.me/ap-prediction", "sites.njit.edu/ap-prediction"),
     ("eunsu-park.github.io/ap-prediction", "njit-research.github.io/ap-prediction"),
+    ("/Users/eunsupark/realtime", "~/realtime"),
 ]
+
+# The standalone production repo must not reveal the development repos. Files
+# within a payload tree that describe the upstream vendoring process are skipped,
+# and text payloads are sanitized of any upstream-repo identifiers on copy.
+EXCLUDE_TREE_FILES = {"_vendor/README.md"}
+TEXT_SUFFIXES = {
+    ".py", ".md", ".yaml", ".yml", ".txt", ".html", ".js", ".css", ".json",
+    ".cfg", ".ini",
+}
+_VENDOR_HEADER_RE = re.compile(r"^#\s*Vendored from .*DO NOT EDIT\..*$", re.MULTILINE)
+_EXTRACTED_HEADER_RE = re.compile(r"^#\s*Extracted from .*\n", re.MULTILINE)
+_RESYNC_LINE_RE = re.compile(r"^[ \t]*#\s*Re-sync: see .*\n", re.MULTILINE)
+_UPSTREAM_PATH_RE = re.compile(r"`(?:setup-sw-db|(?<!realtime-)regression-sw)/[^`]*`")
+_BARE_REGRESSION_RE = re.compile(r"(?<!realtime-)\bregression-sw\b")
 
 
 def log(msg: str) -> None:
@@ -103,8 +119,22 @@ def ensure_source_ready(source: Path) -> None:
             )
 
 
-def rewrite_text(text: str) -> str:
-    """Apply eunsu-park -> njit-research reference rewrites to file text."""
+def sanitize_text(text: str) -> str:
+    """Strip upstream-repo identifiers and apply dev -> prod rewrites.
+
+    The standalone production repo must not reveal the development repos, so this
+    removes vendoring-provenance headers, drops re-sync pointers, neutralizes
+    references to the upstream training/data repositories, and finally applies
+    the URL/repo rewrites in REWRITES.
+    """
+    text = _RESYNC_LINE_RE.sub("", text)
+    text = _VENDOR_HEADER_RE.sub(
+        "# Bundled engine module - do not edit by hand.", text
+    )
+    text = _EXTRACTED_HEADER_RE.sub("", text)
+    text = _UPSTREAM_PATH_RE.sub("`the training code`", text)
+    text = text.replace("setup-sw-db", "the data pipeline")
+    text = _BARE_REGRESSION_RE.sub("the training pipeline", text)
     for old, new in REWRITES:
         text = text.replace(old, new)
     return text
@@ -123,18 +153,29 @@ def copy_tree(src_dir: Path, dst_dir: Path, apply: bool) -> list[str]:
     """
     changed: list[str] = []
     for path in sorted(src_dir.rglob("*")):
-        if any(part in EXCLUDE_DIR_NAMES for part in path.relative_to(src_dir).parts):
+        rel = path.relative_to(src_dir)
+        if any(part in EXCLUDE_DIR_NAMES for part in rel.parts):
             continue
         if path.is_dir():
             continue
-        rel = path.relative_to(src_dir)
-        dst = dst_dir / rel
-        if dst.is_file() and dst.read_bytes() == path.read_bytes():
+        if rel.as_posix() in EXCLUDE_TREE_FILES:
             continue
-        changed.append(str(dst))
-        if apply:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path, dst)
+        dst = dst_dir / rel
+        if path.suffix.lower() in TEXT_SUFFIXES:
+            new_text = sanitize_text(path.read_text(encoding="utf-8"))
+            if dst.is_file() and dst.read_text(encoding="utf-8") == new_text:
+                continue
+            changed.append(str(dst))
+            if apply:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(new_text, encoding="utf-8")
+        else:
+            if dst.is_file() and dst.read_bytes() == path.read_bytes():
+                continue
+            changed.append(str(dst))
+            if apply:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, dst)
     return changed
 
 
@@ -149,8 +190,8 @@ def copy_binary(src: Path, dst: Path, apply: bool) -> list[str]:
 
 
 def copy_text(src: Path, dst: Path, apply: bool) -> list[str]:
-    """Copy a text file with reference rewrites; return [dst] if changed."""
-    new_text = rewrite_text(src.read_text(encoding="utf-8"))
+    """Copy a text file with sanitization + rewrites; return [dst] if changed."""
+    new_text = sanitize_text(src.read_text(encoding="utf-8"))
     if dst.is_file() and dst.read_text(encoding="utf-8") == new_text:
         return []
     if apply:
