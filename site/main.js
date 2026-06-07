@@ -176,7 +176,7 @@
           backgroundColor: "#ea580c",
           borderWidth: 1.5,
           borderDash: [4, 3],
-          pointRadius: 0,
+          pointRadius: 2,
           spanGaps: false,
           tension: 0.15,
         },
