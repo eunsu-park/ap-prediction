@@ -1,7 +1,7 @@
 {
   "status": "error",
   "last_success_utc": "2026-06-07T10:29:45Z",
-  "last_attempt_utc": "2026-06-07T13:11:06Z",
+  "last_attempt_utc": "2026-06-07T14:22:45Z",
   "last_error": {
     "code": 1,
     "message": "Inference exited with code 1."
