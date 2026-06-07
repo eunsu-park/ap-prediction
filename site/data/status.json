@@ -1,9 +1,9 @@
 {
-  "status": "error",
+  "status": "warn",
   "last_success_utc": "2026-06-07T10:29:45Z",
-  "last_attempt_utc": "2026-06-07T14:22:45Z",
+  "last_attempt_utc": "2026-06-07T14:32:59Z",
   "last_error": {
-    "code": 1,
-    "message": "Inference exited with code 1."
+    "code": 2,
+    "message": "InsufficientDataError — upstream data gap, waiting for next cycle."
   }
 }
