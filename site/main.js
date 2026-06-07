@@ -161,7 +161,7 @@
     data: {
       datasets: [
         {
-          label: "observed ap30 (history)",
+          label: "observed ap30",
           data: historyPoints,
           borderColor: "#dc2626",
           backgroundColor: "#dc2626",
@@ -170,10 +170,10 @@
           tension: 0.15,
         },
         {
-          label: "past forecast (+30m)",
+          label: "past forecast",
           data: pastForecastPoints,
-          borderColor: "#ea580c",
-          backgroundColor: "#ea580c",
+          borderColor: "#16a34a",
+          backgroundColor: "#16a34a",
           borderWidth: 1.5,
           borderDash: [4, 3],
           pointRadius: 2,
@@ -198,7 +198,7 @@
           tension: 0.15,
         },
         {
-          label: "predicted ap30 (future)",
+          label: "predicted ap30",
           data: forecastPoints,
           borderColor: "#2563eb",
           backgroundColor: "#2563eb",
@@ -245,9 +245,9 @@
             // array order (which is constrained by draw order + fill refs).
             sort: (a, b) => {
               const order = [
-                "observed ap30 (history)",
-                "past forecast (+30m)",
-                "predicted ap30 (future)",
+                "observed ap30",
+                "past forecast",
+                "predicted ap30",
                 "uncertainty",
               ];
               return order.indexOf(a.text) - order.indexOf(b.text);
