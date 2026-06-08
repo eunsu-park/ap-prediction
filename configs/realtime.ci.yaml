@@ -1,13 +1,9 @@
-# CI runtime configuration — overrides realtime-regression-sw defaults for
-# GitHub Actions runners. Profile is pinned to in2d_out12h_gnn_transformer
-# (2-day lookback, 12-hour / 24-step ap30 forecast).
-#
+# CI runtime configuration for GitHub Actions runners.
 # Paths are relative to the vendor/realtime-regression-sw/ working directory.
-# The forecast.yml workflow:
-#   1) downloads checkpoint + stats into ./checkpoint/
-#   2) runs `run_realtime.py --config ../../configs/realtime.ci.yaml` from
-#      vendor/realtime-regression-sw/
-#   3) scripts/update_site_data.py copies results/predictions/* into site/data/.
+# Active profile: in12h_out12h_gnn_patchtst (12-hour input, 12-hour / 24-step
+# ap30 forecast). The workflow runs
+# `run_realtime.py --config ../../configs/realtime.ci.yaml`, then
+# scripts/update_site_data.py copies results/predictions/* into site/data/.
 
 profile:
   name: "in12h_out12h_gnn_patchtst"
