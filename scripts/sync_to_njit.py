@@ -42,6 +42,7 @@ from pathlib import Path
 ENGINE_ROOT = "vendor/realtime-regression-sw"
 PAYLOAD_TREES = [
     f"{ENGINE_ROOT}/src",
+    f"{ENGINE_ROOT}/scripts",
 ]
 PAYLOAD_BINARIES = [
     f"{ENGINE_ROOT}/checkpoint/model_best.pth",
