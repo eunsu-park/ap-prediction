@@ -154,6 +154,29 @@ uncertainty band, and a vertical "now" divider.
 빨강=에러)와 **플롯**(관측 ap30 history, 현재 12시간 예보 + MCD 불확실성 밴드,
 세로 "now" 구분선)을 보여준다.
 
+## 8. Banner messages / 배너 메시지
+
+The status banner shows one of three colours — green (ok), yellow (warn), red
+(error) — with the messages below, evaluated top-down (the first match wins).
+
+상태 배너는 초록(ok)·노랑(warn)·빨강(error) 세 색 중 하나를 아래 메시지와 함께
+표시하며, 위에서부터 평가해 **처음 일치하는 것**이 적용된다.
+
+| Banner | Message | When | Meaning |
+|---|---|---|---|
+| error | `Status file unavailable …` | `status.json` cannot be fetched | Status file missing (pipeline not run yet / Pages issue) |
+| error | `Forecast data unavailable …` | `latest.json` cannot be fetched | No forecast output exists yet |
+| error | `Pipeline error: Inference exited with code N. Showing last successful forecast.` | `status = "error"` (unexpected non-0/2 exit) | Inference crashed unexpectedly; last good forecast shown |
+| warn | `InsufficientDataError — upstream data gap, waiting for next cycle. Showing last successful forecast.` | `status = "warn"` (exit 2) | Data unavailable / unfillable; last good forecast kept (archive `failed`) |
+| warn | `Data is stale: last successful run was X.X hours ago.` | ok but last run > 2 h old | Forecast not updated recently (runs dropped) |
+| warn | `X.X% of input data was filled from upstream gaps.` | ok, fresh, but imputed > 5% | Forecast produced on imputed inputs (archive `imputed`) |
+| ok | `Forecast is current.` | ok, fresh (< 2 h), imputed ≤ 5% | Fresh, clean forecast (archive `ok`) |
+
+`InsufficientDataError …` 텍스트는 `status.json.last_error.message`에서 오고,
+`Showing last successful forecast.`는 페이지가 덧붙인다. 배너 status는 per-anchor
+아카이브 status와 대응한다: ok ↔ `ok`, "X% filled" ↔ `imputed`,
+"InsufficientDataError" / "Pipeline error" ↔ `failed`.
+
 ## When upstream data is missing — summary / 데이터 결측 시 — 요약
 
 - **Partial gap** (some data fetched): missing values are imputed (forward-fill
