@@ -1,3 +1,0 @@
-[submodule "vendor/realtime-regression-sw"]
-	path = vendor/realtime-regression-sw
-	url = https://github.com/eunsu-park/realtime-regression-sw

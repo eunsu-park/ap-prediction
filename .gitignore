@@ -11,8 +11,9 @@ venv/
 *.swp
 .DS_Store
 
-# Runtime artifacts inside the vendored submodule — pulled fresh each CI run.
-# Listed explicitly because the submodule's own .gitignore lives inside it.
-vendor/realtime-regression-sw/checkpoint/
+# Runtime artifacts inside the inlined engine — generated fresh each CI run.
+# NOTE: this is a self-contained repo, so the model checkpoint
+# (vendor/realtime-regression-sw/checkpoint/) is committed in-tree and must NOT
+# be ignored. Only the generated dataset/ and results/ dirs are ignored.
 vendor/realtime-regression-sw/dataset/
 vendor/realtime-regression-sw/results/

@@ -5,19 +5,29 @@ Public dashboard for 12-hour ap30 geomagnetic index forecasts.
 
 - Deployed site: https://www.eunsu.me/ap-prediction/
   (also at https://eunsu-park.github.io/ap-prediction/)
-- Forecast model: [eunsu-park/realtime-regression-sw](https://github.com/eunsu-park/realtime-regression-sw)
-- Update cadence: every 30 min (cron `8,38 * * * *`)
+- Inference engine + model weights: bundled in-tree under `vendor/realtime-regression-sw/`
+  (engine developed in [eunsu-park/realtime-regression-sw](https://github.com/eunsu-park/realtime-regression-sw))
+- Update cadence: every 30 min, with three attempts per anchor
+  (cron `8,18,28,38,48,58 * * * *`)
 - Architecture details / 상세 설계: [docs/architecture.md](docs/architecture.md)
+
+This repo is **self-contained** (same mechanism as the production
+`njit-research/ap-prediction`): the engine is inlined and the checkpoint
+(`model_best.pth` + `table_stats.pkl`) is committed in-tree, so a run needs only
+a checkout — no submodule, no GitHub Release download.
 
 ## How it works (동작 원리)
 
-1. `.github/workflows/forecast.yml` runs on a 30-min cron.
-2. It checks out this repo (with `realtime-regression-sw` pinned as a submodule),
-   downloads the model checkpoint + normalization stats from the
-   `realtime-regression-sw` GitHub Release, and runs
-   `scripts/run_realtime.py`.
+1. `.github/workflows/forecast.yml` runs on a 10-min cron (three attempts per
+   30-min anchor; a later attempt only overwrites an earlier one at equal-or-
+   better status, so a transient failure never clobbers a good forecast).
+2. It checks out this repo — the inference engine and the model checkpoint are
+   committed in-tree — and runs `scripts/run_realtime.py`. If an upstream feed
+   is unreachable the run exits with a "data gap" warning (exit 2) instead of
+   failing hard.
 3. `scripts/update_site_data.py` copies the newest forecast JSON into
-   `site/data/latest.json` and refreshes `site/data/status.json`.
+   `site/data/latest.json`, refreshes `site/data/status.json`, and appends to
+   the past-forecast archives (`forecast_history.json` / `.csv`).
 4. The `site/` directory is published as a GitHub Pages artifact.
 5. `site/index.html` fetches `data/latest.json` on load and renders a Chart.js
    line plot of the 24-step (12-hour) ap30 forecast.
@@ -27,7 +37,8 @@ Public dashboard for 12-hour ap30 geomagnetic index forecasts.
 ```
 ap-prediction/
 ├── .github/workflows/forecast.yml   cron-triggered pipeline
-├── vendor/realtime-regression-sw/   git submodule, inference code
+├── vendor/realtime-regression-sw/   inlined inference engine
+│   └── checkpoint/                  committed model_best.pth + table_stats.pkl
 ├── configs/realtime.ci.yaml         CI path overrides
 ├── scripts/update_site_data.py      post-process inference output
 ├── site/
@@ -41,37 +52,23 @@ ap-prediction/
 
 ## One-time setup (최초 설정)
 
-### 1. Upload runtime assets to the inference repo
-
-The workflow downloads `model_best.pth` and `table_stats.pkl` from a GitHub
-Release on `eunsu-park/realtime-regression-sw`. Create the release once:
-
-1. Open https://github.com/eunsu-park/realtime-regression-sw/releases/new
-2. Tag: `v0.1.0-assets` (new)
-3. Target: `main`
-4. Title: `v0.1.0 runtime assets`
-5. Attach both files:
-   - `model_best.pth` (~4.5 MB)
-   - `table_stats.pkl` (<100 KB)
-6. Publish.
-
-Matched-pair invariant: the two files must come from the same training run.
-When the model is retrained, create a new release (e.g. `v0.2.0-assets`) with
-both files and update `env.ASSETS_TAG` in `forecast.yml`.
-
-### 2. Enable GitHub Pages
+### Enable GitHub Pages
 
 Settings → Pages → Build and deployment → Source: **GitHub Actions**.
 
-### 3. (Optional) Sync the submodule to a stable tag
+No asset upload or submodule step is needed — the engine and checkpoint are
+committed in-tree.
 
-```
-cd vendor/realtime-regression-sw
-git checkout <tag-or-sha>
-cd ../..
-git add vendor/realtime-regression-sw
-git commit -m "Pin realtime-regression-sw to <tag-or-sha>"
-```
+## Updating the engine / model (엔진·모델 갱신)
+
+Because the engine and weights are vendored in-tree, an upgrade is a payload
+refresh, not a submodule bump:
+
+1. Develop and validate in `eunsu-park/realtime-regression-sw`.
+2. Re-inline the engine (`vendor/realtime-regression-sw/`) and replace the
+   checkpoint pair under `vendor/realtime-regression-sw/checkpoint/`.
+3. Commit. Matched-pair invariant: `model_best.pth` and `table_stats.pkl` must
+   come from the same training run (no runtime validation).
 
 ## Trigger a run manually
 
