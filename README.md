@@ -7,15 +7,15 @@ Public dashboard for 12-hour ap30 geomagnetic index forecasts.
 - Inference engine + model weights: bundled in-tree under `vendor/realtime-regression-sw/`
   (engine developed in [eunsu-park/geoindex-realtime](https://github.com/eunsu-park/geoindex-realtime))
 - Update cadence: a new anchor every 30 min; the cron fires every 10 min with
-  three attempts per anchor (cron `8,18,28,38,48,58 * * * *`)
+  three attempts per anchor (cron `8,18,28,38,48,58 * * * *`, a backup against
+  transient upstream outages)
 - Architecture details: [docs/architecture.md](docs/architecture.md)
 
-This repo is **self-contained** (same mechanism as the production
-`njit-research/ap-prediction`): the engine is inlined and the checkpoint
+This repo is **self-contained**: the engine is inlined and the checkpoint
 (`model_best.pth` + `table_stats.pkl`) is committed in-tree, so a run needs only
 a checkout — no submodule, no GitHub Release download.
 
-## How it works
+## How It Works
 
 1. `.github/workflows/forecast.yml` runs on a 10-min cron (three attempts per
    30-min anchor; a later attempt only overwrites an earlier one at equal-or-
@@ -28,16 +28,17 @@ a checkout — no submodule, no GitHub Release download.
    `site/data/latest.json`, refreshes `site/data/status.json`, and appends to
    the past-forecast archives (`forecast_history.json` / `.csv`).
 4. The `site/` directory is published as a GitHub Pages artifact.
-5. `site/index.html` fetches `data/latest.json` on load and renders a Chart.js
-   line plot of the 24-step (12-hour) ap30 forecast.
+5. `site/index.html` fetches `data/latest.json` (+ `forecast_history.json`) on
+   load and renders a Chart.js plot of the 24-step (12-hour) ap30 forecast, the
+   observed history, and the past-forecast line, with a `forecast_history.csv`
+   download link.
 
-## Repository layout
+## Repository Layout
 
 ```
 ap-prediction/
 ├── .github/workflows/forecast.yml   cron-triggered pipeline
-├── vendor/realtime-regression-sw/   inlined inference engine
-│   └── checkpoint/                  committed model_best.pth + table_stats.pkl
+├── vendor/realtime-regression-sw/   inlined inference engine + committed checkpoint
 ├── configs/realtime.ci.yaml         CI path overrides
 ├── scripts/update_site_data.py      post-process inference output
 ├── site/
@@ -49,32 +50,44 @@ ap-prediction/
 └── README.md
 ```
 
-## One-time setup
+## One-Time Setup
 
-### Enable GitHub Pages
+Enable GitHub Pages: Settings → Pages → Build and deployment → Source:
+**GitHub Actions**.
 
-Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+That is the only setup step: the inference engine and the model checkpoint
+(`model_best.pth` + `table_stats.pkl`) are committed in-tree, so the workflow
+runs from a plain checkout with no asset download or submodule step.
 
-No asset upload or submodule step is needed — the engine and checkpoint are
-committed in-tree.
-
-## Updating the engine / model
+## Updating the Model
 
 Because the engine and weights are vendored in-tree, an upgrade is a payload
 refresh, not a submodule bump:
 
-1. Develop and validate in `eunsu-park/geoindex-realtime`.
+1. Develop and validate in
+   [eunsu-park/geoindex-realtime](https://github.com/eunsu-park/geoindex-realtime).
 2. Re-inline the engine (`vendor/realtime-regression-sw/`) and replace the
-   checkpoint pair under `vendor/realtime-regression-sw/checkpoint/`.
-3. Commit. Matched-pair invariant: `model_best.pth` and `table_stats.pkl` must
-   come from the same training run (no runtime validation).
+   matched checkpoint pair:
 
-## Trigger a run manually
+   ```
+   cp <new>/model_best.pth  vendor/realtime-regression-sw/checkpoint/
+   cp <new>/table_stats.pkl vendor/realtime-regression-sw/checkpoint/
+   git add vendor/realtime-regression-sw/checkpoint/model_best.pth \
+           vendor/realtime-regression-sw/checkpoint/table_stats.pkl
+   git commit -m "Update checkpoint to <training-run-id>"
+   ```
+
+3. Matched-pair invariant: `model_best.pth` and `table_stats.pkl` must come from
+   the same training run (no runtime validation). See
+   [docs/architecture.md](docs/architecture.md) §5 for handling engine-source /
+   config changes alongside the weights.
+
+## Trigger a Run Manually
 
 Actions tab → "Forecast" workflow → "Run workflow".
 Optionally provide an ISO8601 `now` to replay a specific anchor.
 
-## Failure handling
+## Failure Handling
 
 `run_realtime.py` exit codes mapped by `scripts/update_site_data.py`:
 
@@ -85,3 +98,7 @@ Optionally provide an ISO8601 `now` to replay a specific anchor.
 
 The workflow itself always succeeds (the Actions badge stays green); the page
 banner is the true health indicator.
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
