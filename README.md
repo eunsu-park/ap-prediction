@@ -6,9 +6,9 @@ Public dashboard for 12-hour ap30 geomagnetic index forecasts.
 - Deployed site: https://www.eunsu.me/ap-prediction/
   (also at https://eunsu-park.github.io/ap-prediction/)
 - Inference engine + model weights: bundled in-tree under `vendor/realtime-regression-sw/`
-  (engine developed in [eunsu-park/realtime-regression-sw](https://github.com/eunsu-park/realtime-regression-sw))
-- Update cadence: every 30 min, with three attempts per anchor
-  (cron `8,18,28,38,48,58 * * * *`)
+  (engine developed in [eunsu-park/geoindex-realtime](https://github.com/eunsu-park/geoindex-realtime))
+- Update cadence: a new anchor every 30 min; the cron fires every 10 min with
+  three attempts per anchor (cron `8,18,28,38,48,58 * * * *`)
 - Architecture details / 상세 설계: [docs/architecture.md](docs/architecture.md)
 
 This repo is **self-contained** (same mechanism as the production
@@ -64,7 +64,7 @@ committed in-tree.
 Because the engine and weights are vendored in-tree, an upgrade is a payload
 refresh, not a submodule bump:
 
-1. Develop and validate in `eunsu-park/realtime-regression-sw`.
+1. Develop and validate in `eunsu-park/geoindex-realtime`.
 2. Re-inline the engine (`vendor/realtime-regression-sw/`) and replace the
    checkpoint pair under `vendor/realtime-regression-sw/checkpoint/`.
 3. Commit. Matched-pair invariant: `model_best.pth` and `table_stats.pkl` must

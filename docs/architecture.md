@@ -8,68 +8,93 @@ the dashboard page connects to the main personal site at `www.eunsu.me`.
 요소, 실시간 피드에서 브라우저까지의 데이터 흐름, 대시보드 페이지가 개인
 사이트(`www.eunsu.me`)와 어떻게 연결되는지 다룹니다.
 
+For the runtime behaviour of a single forecast (data collection, imputation,
+status classification, the retry rule), see
+[docs/forecast-process.md](forecast-process.md).
+단일 예보의 런타임 동작(데이터 수집·보간·상태 판정·재시도 규칙)은
+[docs/forecast-process.md](forecast-process.md)를 참고하세요.
+
 ---
 
 ## 1. Overview / 개요
 
 `ap-prediction` publishes a live 12-hour ap30 geomagnetic-index forecast
 chart at `https://www.eunsu.me/ap-prediction/`. A GitHub Actions cron
-re-runs the inference pipeline every 30 minutes, writes a fresh
-`latest.json`, and deploys the updated static site to GitHub Pages.
+re-runs the inference pipeline every 10 minutes (three attempts per 30-min
+anchor), writes a fresh `latest.json`, and deploys the updated static site
+to GitHub Pages.
 
 `ap-prediction`은 12시간 ap30 지자기 지수 예측 차트를
 `https://www.eunsu.me/ap-prediction/`에 공개합니다. GitHub Actions cron이
-30분마다 추론 파이프라인을 재실행하고 새 `latest.json`을 기록한 뒤,
-업데이트된 정적 사이트를 GitHub Pages에 배포합니다.
+10분마다(30분 anchor당 3회 시도) 추론 파이프라인을 재실행하고 새
+`latest.json`을 기록한 뒤, 업데이트된 정적 사이트를 GitHub Pages에
+배포합니다.
 
 **Design tenets / 설계 원칙**
 
-- Single source of truth for the model: the sibling repository
-  `realtime-regression-sw`. This repo pins a specific commit of it as a
-  git submodule.
-  모델은 `realtime-regression-sw` 레포가 단일 출처이며, 본 레포는 submodule로
-  특정 커밋에 고정합니다.
-- The model weights (`model_best.pth`) and normalizer stats
-  (`table_stats.pkl`) are versioned together as a GitHub Release asset
-  pair, never checked into git.
-  모델 가중치와 정규화 통계는 GitHub Release 자산으로 쌍(pair)으로 관리되며,
-  git에는 커밋되지 않습니다.
-- Everything the browser consumes is a single JSON file
-  (`site/data/latest.json`). No backend API, no database, no server-side
-  rendering. Just a static site.
-  브라우저는 단일 JSON 파일(`site/data/latest.json`)만 소비합니다. 백엔드 API,
-  데이터베이스, 서버사이드 렌더링 없음 — 순수 정적 사이트입니다.
+- **Self-contained in-tree.** The inference engine is inlined under
+  `vendor/realtime-regression-sw/`, and the model weights
+  (`model_best.pth`) and normalizer stats (`table_stats.pkl`) are committed
+  in-tree under `vendor/realtime-regression-sw/checkpoint/`. A forecast run
+  needs only a plain checkout — no git submodule, no GitHub Release
+  download, no cache step.
+  **자기완결형(in-tree).** 추론 엔진은 `vendor/realtime-regression-sw/`에
+  인라인되어 있고, 모델 가중치(`model_best.pth`)와 정규화 통계
+  (`table_stats.pkl`)는 `vendor/realtime-regression-sw/checkpoint/`에 함께
+  커밋됩니다. 예보 실행에는 단순 checkout만 필요 — submodule·Release
+  다운로드·캐시 단계 없음.
+- **Matched-pair invariant.** `model_best.pth` and `table_stats.pkl` must
+  come from the same training run. Mismatched files silently produce
+  miscalibrated forecasts; there is no runtime check, so the pairing is
+  enforced by process (they are swapped together, see §5).
+  **매칭 페어 불변식.** `model_best.pth`와 `table_stats.pkl`은 동일 학습
+  실행에서 나와야 합니다. 불일치 시 조용히 miscalibrated 예측이 나오며
+  런타임 검증이 없으므로, 페어링은 절차로 보장합니다(항상 함께 교체, §5).
+- **Static site.** Everything the browser consumes is JSON on disk
+  (`site/data/latest.json` + `status.json`). No backend API, no database,
+  no server-side rendering.
+  **정적 사이트.** 브라우저는 디스크의 JSON(`site/data/latest.json` +
+  `status.json`)만 소비합니다. 백엔드 API·DB·서버사이드 렌더링 없음.
 
 ---
 
 ## 2. Component map / 구성 요소
 
-Three GitHub repositories cooperate. Each one is public and independent.
-세 개의 GitHub 레포지토리가 협력합니다. 모두 공개이며 독립적입니다.
+This repository is self-contained: the workflow, the inlined engine, the
+committed checkpoint, and the site all live together. Two other
+repositories are involved only at the edges — one upstream (where the engine
+is developed) and one downstream (the homepage that links to the dashboard).
+
+본 레포는 자기완결형입니다. 워크플로·인라인 엔진·커밋된 체크포인트·사이트가
+한곳에 있습니다. 다른 두 레포는 경계에서만 관여합니다 — 하나는 상류(엔진
+개발처), 하나는 하류(대시보드로 링크하는 홈페이지).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  github.com/eunsu-park/realtime-regression-sw                           │
-│    ├── scripts/run_realtime.py          ← inference CLI / 추론 CLI      │
-│    ├── src/, configs/                                                   │
-│    └── Release: v0.1.0-assets                                           │
-│        ├── model_best.pth               ← trained weights / 학습 가중치 │
-│        └── table_stats.pkl              ← normalizer / 정규화 통계      │
+│  github.com/eunsu-park/geoindex-realtime        (engine dev / 엔진 개발) │
+│    Train + validate the model here. On an upgrade, the engine source     │
+│    and the checkpoint pair are re-inlined into ap-prediction (§5).       │
+│    모델 학습·검증. 업그레이드 시 엔진 소스와 체크포인트 페어를              │
+│    ap-prediction에 다시 인라인(§5).                                       │
 └──────────────────────┬──────────────────────────────────────────────────┘
-                       │ git submodule (pinned commit)
-                       │ gh release download (runtime)
+                       │ payload refresh (re-inline engine + swap checkpoint)
                        ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  github.com/eunsu-park/ap-prediction          (this repo / 본 레포)     │
-│    ├── .github/workflows/forecast.yml   ← cron + build + deploy         │
-│    ├── vendor/realtime-regression-sw/   ← submodule                     │
+│  github.com/eunsu-park/ap-prediction   (this repo, self-contained/본 레포)│
+│    ├── .github/workflows/forecast.yml   ← cron + build + deploy          │
+│    ├── vendor/realtime-regression-sw/   ← inlined engine (in-tree dir)   │
+│    │   ├── src/, scripts/run_realtime.py   inference engine + CLI        │
+│    │   └── checkpoint/                                                   │
+│    │       ├── model_best.pth           ← committed weights / 커밋 가중치│
+│    │       └── table_stats.pkl          ← committed normalizer stats     │
 │    ├── configs/realtime.ci.yaml         ← CI path overrides             │
 │    ├── scripts/update_site_data.py      ← JSON post-process             │
 │    ├── site/index.html                  ← page shell / 페이지 골격      │
 │    ├── site/main.js                     ← Chart.js renderer             │
 │    └── site/data/                                                       │
 │        ├── latest.json                  ← most recent forecast          │
-│        └── status.json                  ← pipeline health               │
+│        ├── status.json                  ← pipeline health               │
+│        └── forecast_history.json/.csv   ← per-anchor archives           │
 └──────────────────────┬──────────────────────────────────────────────────┘
                        │ actions/deploy-pages@v4 (artifact)
                        ▼
@@ -87,29 +112,30 @@ Three GitHub repositories cooperate. Each one is public and independent.
           www.eunsu.me/                     (main CV site / 메인 사이트)
 ```
 
-**Why three repos / 왜 세 레포로 분리했나**
+**Why keep them separate / 왜 분리했나**
 
-- `realtime-regression-sw` is the canonical model owner. Retraining bumps
-  its release tag. Changes here must not casually break downstream
-  consumers.
-  `realtime-regression-sw`는 모델 소유자. 재학습은 릴리즈 태그 갱신으로 관리.
-  변경이 하위 소비자에게 우발적 영향을 주지 않도록 격리.
-- `ap-prediction` is a *consumer*. It pins a submodule commit so the page
-  never accidentally depends on the latest unstable model code.
-  `ap-prediction`은 소비자. submodule 커밋 고정으로 불안정한 최신 모델 코드에
-  우발적 의존 방지.
-- `eunsu-park.github.io` is a separate Jekyll CV site. It stays clean —
-  no forecast auto-commits pollute its history, and a 30-min cron does
-  not trigger its Jekyll rebuild.
-  `eunsu-park.github.io`는 독립 Jekyll CV 사이트. 30분 주기의 forecast
-  auto-commit이 Jekyll 리빌드를 유발하지 않도록 분리.
+- `geoindex-realtime` is the engine's development home. Training and
+  validation happen there; `ap-prediction` only ever receives a vetted,
+  re-inlined payload, so day-to-day model-code churn never destabilizes the
+  live dashboard.
+  `geoindex-realtime`는 엔진 개발처. 학습·검증은 그곳에서, `ap-prediction`은
+  검증된 페이로드만 받아 인라인하므로 모델 코드 변동이 라이브 대시보드를
+  흔들지 않습니다.
+- `eunsu-park.github.io` is a separate Jekyll CV site. It stays clean — the
+  forecast auto-commits land in `ap-prediction`, not here, so a 10-min cron
+  never triggers its Jekyll rebuild.
+  `eunsu-park.github.io`는 독립 Jekyll CV 사이트. forecast auto-commit은
+  `ap-prediction`에만 쌓이므로 10분 주기 cron이 Jekyll 리빌드를 유발하지
+  않습니다.
 
 ---
 
 ## 3. Data flow / 데이터 흐름
 
-Every 30 minutes, one full cycle from upstream feed to browser happens:
-30분마다 업스트림 피드에서 브라우저까지 한 사이클이 돕니다:
+Every anchor (new every 30 min, up to three attempts), one full cycle from
+upstream feed to browser happens:
+anchor마다(30분마다 새로 생기며 최대 3회 시도), 업스트림 피드에서 브라우저까지
+한 사이클이 돕니다:
 
 ```
 ┌──────────────────────┐   ┌──────────────────────┐   ┌──────────────────────┐
@@ -119,16 +145,16 @@ Every 30 minutes, one full cycle from upstream feed to browser happens:
            └──────────────┬──────────────┘                       │
                           ▼                                      ▼
                 ┌─────────────────────────────────────────────────────┐
-                │ realtime-regression-sw — run_realtime.py            │
+                │ vendor/realtime-regression-sw — run_realtime.py     │
                 │                                                     │
                 │  1. Fetch the three HTTP feeds (requests + retry)   │
                 │  2. Aggregate 1-min → 30-min bins                   │
                 │  3. Compute anchor t_end = floor(now - 2min, 30min) │
-                │  4. Build the 96-row × 22-col event window          │
+                │  4. Build the 24-row × 22-col event window (impute) │
                 │  5. Normalize with table_stats.pkl                  │
-                │  6. Run model_best.pth (CPU, ~100ms)                │
-                │  7. Denormalize, emit forecast 24 steps × ap30      │
-                │  8. Write JSON + CSV to results/{YYYYMMDD}/         │
+                │  6. Run model_best.pth (GNN + PatchTST, CPU)        │
+                │  7. Denormalize; emit 24-step ap30 forecast + MCD   │
+                │  8. Write JSON + CSV to results/predictions/…       │
                 └──────────────────────┬──────────────────────────────┘
                                        │
                                        ▼
@@ -139,13 +165,13 @@ Every 30 minutes, one full cycle from upstream feed to browser happens:
                 │  2. Read it                                         │
                 │  3. Locate the paired event CSV                     │
                 │     (dataset/events/{anchor_stem}.csv)              │
-                │  4. Extract last 96 rows of (datetime, ap30) →      │
-                │     embed as "history" array in payload             │
-                │  5. Write to site/data/latest.json                  │
-                │  6. Refresh site/data/status.json                   │
+                │  4. Embed the last 96 rows of observed (datetime,   │
+                │     ap30) as the "history" array (48 h of display)  │
+                │  5. Write site/data/latest.json (don't-downgrade)   │
+                │  6. Refresh status.json + forecast_history.json/csv │
                 └──────────────────────┬──────────────────────────────┘
                                        │
-                                       ▼ (git commit + push to main)
+                                       ▼ (git commit + push site/data to main)
                                        │
                                        ▼ (actions/deploy-pages artifact)
                                        │
@@ -158,7 +184,7 @@ Every 30 minutes, one full cycle from upstream feed to browser happens:
                 │  3. Populate metadata block (UTC + KST)             │
                 │  4. Paint status banner based on status.json        │
                 │  5. Render Chart.js: gray history + blue forecast   │
-                │     + dashed bridge at the anchor                   │
+                │     + MCD band + "now" divider at the anchor        │
                 │  6. x-axis tick labels formatted in UTC             │
                 └─────────────────────────────────────────────────────┘
 ```
@@ -166,13 +192,12 @@ Every 30 minutes, one full cycle from upstream feed to browser happens:
 ### 3.1 Input / 입력
 
 - **NOAA SWPC real-time solar wind** — plasma (density, speed, temp) and
-  IMF magnetic field (Bx/By/Bz/Bt). 7-day rolling JSON; we use the last
-  48 hours.
+  IMF magnetic field (Bx/By/Bz/Bt). 7-day rolling JSON.
 - **GFZ Potsdam Hp30/ap30 nowcast** — 30-min geomagnetic index observed
   values. Text file, published within minutes of each 30-min boundary.
 
 - **NOAA SWPC 실시간 태양풍** — plasma(밀도, 속도, 온도)과 IMF 자기장
-  (Bx/By/Bz/Bt). 7일 롤링 JSON, 최근 48시간 사용.
+  (Bx/By/Bz/Bt). 7일 롤링 JSON.
 - **GFZ 포츠담 Hp30/ap30 nowcast** — 30분 지자기 지수 관측값. 텍스트 파일,
   각 30분 경계 직후 발행.
 
@@ -191,29 +216,43 @@ t_end = floor(now - 2min, to 30-min boundary)
 Example / 예시: at 14:13 UTC → `t_end = 14:00 UTC`. At 14:45 UTC
 → `t_end = 14:30 UTC`.
 
-If the final steps of the input window are NaN even after forward-fill,
-`t_end` rolls back one 30-min step (up to 2 attempts). Beyond that, the
-CLI exits with code 2 (`InsufficientDataError`).
+If the input window cannot be filled even after imputation, `t_end` may
+roll back one 30-min step (up to 2 attempts). Beyond that, the CLI exits
+with code 2 (data gap). See [forecast-process.md](forecast-process.md) §3
+for the full imputation policy.
 
-입력 윈도우의 마지막 스텝이 forward-fill 후에도 NaN이면, `t_end`를 30분씩
-rollback(최대 2회). 그 이상이면 CLI가 exit code 2 (`InsufficientDataError`)로
-종료합니다.
+입력 윈도우가 보간 후에도 채워지지 않으면 `t_end`를 30분씩 rollback(최대
+2회). 그 이상이면 CLI가 exit code 2(데이터 공백)로 종료합니다. 보간 정책
+전체는 [forecast-process.md](forecast-process.md) §3 참고.
 
 ### 3.3 Model I/O shape / 모델 입출력 shape
 
+Active profile: **`in12h_out12h_gnn_patchtst`** — an 8-node GNN with a
+PatchTST temporal backend.
+활성 프로파일: **`in12h_out12h_gnn_patchtst`** — 8-노드 GNN + PatchTST
+시간 백엔드.
+
 | Tensor | Shape | Description |
 |--------|-------|-------------|
-| Input  | `(1, 96, 22)` | 1 batch × 96 timesteps (2 days × 30-min) × 22 vars |
+| Input  | `(1, 24, 22)` | 1 batch × 24 timesteps (12 hours × 30-min) × 22 vars |
 | Output | `(1, 24, 1)`  | 1 batch × 24 timesteps (12 hours × 30-min) × 1 var (ap30) |
 
 22 input variables: 21 solar-wind parameters (v/np/t ×avg/min/max,
 Bx/By/Bz/Bt ×avg/min/max) + ap30.
 
 The input ordering and normalization schema are **safety-critical
-invariants**; see
-[docs/realtime-regression-sw/runtime-invariants.md](https://github.com/eunsu-park/realtime-regression-sw/blob/main/docs/realtime-regression-sw/runtime-invariants.md).
+invariants** — the input window and the `table_stats.pkl` used to normalize
+it must match the trained model.
 
-입력 순서와 정규화 스키마는 **안전 불변식**입니다. 위 문서 참조.
+입력 순서와 정규화 스키마는 **안전 불변식**입니다 — 입력 윈도우와 정규화에
+쓰는 `table_stats.pkl`은 학습된 모델과 일치해야 합니다.
+
+> Note: the 24-row figure above is the **model input window** (12 h). The
+> `history` array embedded into `latest.json` for the chart is a separate,
+> longer 96-row (48 h) slice of observed ap30 used only for display.
+> 참고: 위의 24-row는 **모델 입력창**(12 h)입니다. 차트용으로
+> `latest.json`에 담기는 `history` 배열은 표시 전용의 별도 96-row(48 h)
+> 관측 ap30입니다.
 
 ---
 
@@ -226,17 +265,23 @@ File: [.github/workflows/forecast.yml](../.github/workflows/forecast.yml)
 ```yaml
 on:
   schedule:
-    - cron: '3,33 * * * *'     # every 30 min: :03 and :33 UTC
-  workflow_dispatch:            # manual trigger from the UI
+    - cron: '8,18,28,38,48,58 * * * *'   # every 10 min; 3 attempts per anchor
+  workflow_dispatch:                      # manual trigger from the UI
     inputs:
       now: {description: 'ISO8601 anchor override', required: false}
 ```
 
-- **Cron** — fires at :03 and :33 UTC (= :03 and :33 KST, since minute is
-  timezone-invariant). Offset chosen to dodge the hour-boundary
-  congestion on GitHub's scheduler.
-  Cron은 UTC :03, :33에 발사. 분(minute)은 시간대 불변이므로 KST도 :03, :33.
-  시간 경계 혼잡을 피하기 위한 오프셋.
+- **Cron** — fires every 10 minutes. Each 30-min anchor gets three attempts:
+  the `:00` anchor at `:08`/`:18`/`:28`, the `:30` anchor at
+  `:38`/`:48`/`:58`. The `:08` offset gives publishers time to post. A
+  later attempt only overwrites an earlier one when its status is the same
+  or better (**don't-downgrade**, see §4.5), so a transient failure never
+  clobbers a good forecast. GitHub schedules are best-effort and may be
+  delayed or dropped, so not all three attempts always fire.
+  Cron은 10분마다 발사. 각 30분 anchor는 3회 시도(`:00`→`:08`/`:18`/`:28`,
+  `:30`→`:38`/`:48`/`:58`). `:08` 오프셋은 발행 대기 시간. 나중 시도는
+  status가 같거나 높을 때만 앞선 것을 덮어씀(**don't-downgrade**, §4.5).
+  GitHub 예약은 best-effort라 지연·드롭될 수 있어 3회가 항상 다 돌지는 않음.
 - **workflow_dispatch** — manual trigger with optional `now` parameter for
   replaying a specific anchor (debugging / backfill).
   수동 트리거, `now`로 특정 anchor 재실행 가능.
@@ -266,350 +311,136 @@ permissions:
 
 ### 4.4 Steps / 단계
 
+Because the engine and checkpoint are committed in-tree, the workflow is a
+plain checkout followed by install → infer → post-process → deploy. There
+is **no** `submodules: true`, **no** `actions/cache` for weights, and **no**
+`gh release download` step.
+
+엔진과 체크포인트가 in-tree로 커밋되어 있으므로, 워크플로는 단순 checkout →
+설치 → 추론 → 후처리 → 배포입니다. `submodules: true`도, 가중치용
+`actions/cache`도, `gh release download` 단계도 **없습니다**.
+
 | # | Step | Purpose |
 |---|------|---------|
-| 1 | `actions/checkout@v4` (with submodules) | Pull `ap-prediction` + the pinned `realtime-regression-sw` submodule |
-| 2 | `actions/setup-python@v5` (3.12, pip cache) | Python runtime + speed up subsequent installs |
+| 1 | `actions/checkout@v4` (no submodules) | Pull this self-contained repo, including the inlined engine + committed checkpoint |
+| 2 | `actions/setup-python@v5` (3.12, pip cache keyed on `vendor/realtime-regression-sw/requirements.txt`) | Python runtime + speed up subsequent installs |
 | 3 | `pip install torch --index-url .../cpu` | **CPU-only** PyTorch wheel (~200 MB instead of ~1.5 GB for CUDA) |
 | 4 | `pip install -r vendor/realtime-regression-sw/requirements.txt` | numpy, pandas, pyarrow, omegaconf, pyyaml, requests, tqdm, matplotlib |
-| 5 | `actions/cache@v4` keyed on `release-${ASSETS_TAG}` | Restore checkpoint + stats if the release tag hasn't changed |
-| 6 | `gh release download ...` (on cache miss) | Pull `model_best.pth` + `table_stats.pkl` from the Release |
-| 7 | `python scripts/run_realtime.py --config ../../configs/realtime.ci.yaml` | **Inference**. Captures real exit code via `set +e` and `$GITHUB_OUTPUT` |
-| 8 | `python scripts/update_site_data.py --exit-code X` | Post-process: copy JSON, embed history, update status |
-| 9 | `git commit -m "chore: update forecast data"` + `git push` | Persist `site/data/*.json` changes to `main` |
-| 10 | Job summary | Append anchor + first-horizon ap30 to the Actions run summary |
-| 11 | `actions/configure-pages@v5` | Signal to Pages: "we're deploying now" |
-| 12 | `actions/upload-pages-artifact@v3 path:site` | Upload the `site/` tree as a Pages artifact |
-| 13 | `actions/deploy-pages@v4` | Publish the artifact to the live site |
+| 5 | `python scripts/run_realtime.py --config ../../configs/realtime.ci.yaml --device cpu --verbose` (in `vendor/realtime-regression-sw`) | **Inference**. Optional `--now`. Real exit code captured via `set +e` → `$GITHUB_OUTPUT`; the step always `exit 0` |
+| 6 | `python scripts/update_site_data.py --exit-code X` | Post-process: copy JSON, embed history, update `status.json` + archives |
+| 7 | `git add site/data` + commit + push | Persist `site/data/*` changes to `main` (skipped if nothing changed) |
+| 8 | Job summary | Append anchor + first-horizon ap30 to the Actions run summary |
+| 9 | `actions/configure-pages@v5` | Signal to Pages: "we're deploying now" |
+| 10 | `actions/upload-pages-artifact@v3 path:site` | Upload the `site/` tree as a Pages artifact |
+| 11 | `actions/deploy-pages@v4` | Publish the artifact to the live site |
 
 ### 4.5 Failure handling / 실패 처리
 
-The workflow itself **never fails** on inference errors. Instead, the
-failure state is recorded in `status.json` and rendered as a banner on
-the page:
+The inference step always exits 0 (its real code is captured separately), so
+the workflow **never fails** on inference errors. The failure state is
+recorded in `status.json` and rendered as a banner on the page:
 
-추론 오류가 나도 워크플로 자체는 **절대 실패하지 않음**. 대신 `status.json`에
-실패 상태를 기록하고 페이지 배너로 표출:
+추론 단계는 항상 exit 0(실제 코드는 별도 기록)이므로 워크플로 자체는 추론
+오류로 **절대 실패하지 않음**. 실패 상태는 `status.json`에 기록되어 페이지
+배너로 표출:
 
 | Inference exit code | `status.json.status` | Page banner |
 |---------------------|----------------------|-------------|
 | `0` (success)       | `"ok"`               | Green: "Forecast is current." |
-| `2` (InsufficientDataError) | `"warn"`     | Yellow: upstream data gap |
+| `2` (data gap)      | `"warn"`             | Yellow: upstream data gap |
 | other non-zero      | `"error"`            | Red: inference error |
 
 When the run fails, `latest.json` is **not overwritten** — the page keeps
-showing the last successful forecast with the warning banner on top.
+showing the last successful forecast with the warning banner on top. Every
+run is also recorded into the per-anchor archives
+(`forecast_history.json`/`.csv`) with an `ok`/`imputed`/`failed` status, and
+the **don't-downgrade** rule (`ok` > `imputed` > `failed`) governs whether a
+later attempt overwrites an earlier record for the same anchor. See
+[forecast-process.md](forecast-process.md) §5–§8 for the full classification
+and banner logic.
 
 실패 시 `latest.json`은 **덮어쓰지 않음**. 페이지는 마지막 성공 예측을 유지한
-채 상단에 경고 배너만 표시.
+채 경고 배너만 표시. 매 실행은 per-anchor 아카이브
+(`forecast_history.json`/`.csv`)에 `ok`/`imputed`/`failed` status로 기록되며,
+같은 anchor의 앞선 기록을 나중 시도가 덮어쓸지는 **don't-downgrade**
+규칙(`ok` > `imputed` > `failed`)이 결정. 분류·배너 로직 전체는
+[forecast-process.md](forecast-process.md) §5–§8 참고.
 
 ---
 
 ## 5. Model asset delivery / 모델 자산 전달
 
-### 5.1 Why not commit weights directly / 왜 가중치를 커밋하지 않나
+### 5.1 Why commit the weights in-tree / 왜 가중치를 in-tree로 커밋하나
 
-- `model_best.pth` (~4.5 MB) + retraining churn would bloat git history
-  over time.
-- Weights must stay paired with the matching `table_stats.pkl`. Pairing
-  them as **one GitHub Release** makes the coupling explicit and
-  atomic.
-- The CI cache (`actions/cache@v4`) downloads them once per release tag
-  and reuses them across subsequent runs — zero cost on steady state.
+- `model_best.pth` (~4–5 MB) is small enough that committing it — rather
+  than fetching it from a Release at runtime — makes every run reproducible
+  from a single checkout, with no external dependency to break.
+  `model_best.pth`(~4–5 MB)는 충분히 작아, 런타임에 Release에서 받는 대신
+  커밋해 두면 단일 checkout만으로 모든 실행이 재현 가능하고 외부 의존이
+  깨질 일이 없습니다.
+- The weights and `table_stats.pkl` live side by side under
+  `checkpoint/` and are **always swapped together**, making the matched-pair
+  coupling a git-level fact rather than a runtime hope.
+  가중치와 `table_stats.pkl`은 `checkpoint/` 아래 나란히 두고 **항상 함께
+  교체**되므로, 매칭 페어 결합이 런타임의 기대가 아니라 git 수준의 사실이
+  됩니다.
 
-- 재학습 시 git 히스토리가 비대해짐
-- 가중치는 `table_stats.pkl`과 반드시 짝을 이뤄야 함. **하나의 Release**로
-  묶으면 결합이 명시적·원자적
-- CI 캐시가 릴리즈 태그당 한 번만 다운로드하고 이후 재사용 — 정상 상태에서
-  추가 비용 0
+### 5.2 Updating the checkpoint (payload refresh) / 체크포인트 갱신(페이로드 리프레시)
 
-### 5.2 Updating the checkpoint / 체크포인트 갱신 절차
+Because the engine and weights are vendored in-tree, an upgrade is a
+**payload refresh**, not a submodule bump or a Release upload:
 
-This is the runbook for replacing `model_best.pth` and
-`table_stats.pkl` with a newly trained pair. The whole operation is
-driven by **one env-var bump in the workflow file** — no direct file
-movement is needed.
+엔진과 가중치가 in-tree로 벤더링되어 있으므로, 업그레이드는 submodule 이동이나
+Release 업로드가 아니라 **페이로드 리프레시**입니다:
 
-재학습된 `model_best.pth` / `table_stats.pkl` 쌍으로 교체하는 런북입니다.
-전체 작업은 **워크플로 파일의 env 값 한 줄 변경**으로 구동되며, 파일을 직접
-이동/복사할 필요가 없습니다.
+1. **Develop and validate** the new engine/model in
+   `eunsu-park/geoindex-realtime`.
+   새 엔진/모델을 `eunsu-park/geoindex-realtime`에서 개발·검증.
+2. **Re-inline the engine** into `vendor/realtime-regression-sw/` (source
+   under `src/` + `scripts/`) and **swap the checkpoint pair** under
+   `vendor/realtime-regression-sw/checkpoint/` — replace both
+   `model_best.pth` and `table_stats.pkl` from the **same training run**.
+   엔진을 `vendor/realtime-regression-sw/`에 다시 인라인(`src/` + `scripts/`)
+   하고 `vendor/realtime-regression-sw/checkpoint/`의 체크포인트 페어를 교체 —
+   `model_best.pth`와 `table_stats.pkl`을 **동일 학습 실행**에서 함께 교체.
+3. **Update `configs/realtime.ci.yaml` if the architecture/shape changed**
+   (`profile.*`, `experiment.name`, `window.lookback_steps`,
+   `window.forecast_steps`, and `model_provenance.*`). For a same-shape
+   retrain, only `model_provenance.*` (the displayed val metrics) needs to
+   change. Commit the config change **together with** the checkpoint swap so
+   the repo is never in a mismatched state.
+   **아키텍처/shape가 바뀌면 `configs/realtime.ci.yaml` 갱신**(`profile.*`,
+   `experiment.name`, `window.lookback_steps`, `window.forecast_steps`,
+   `model_provenance.*`). 동일 shape 재학습이면 `model_provenance.*`(표시용
+   val 지표)만 변경. config 변경은 체크포인트 교체와 **같은 커밋에** 반영해
+   불일치 상태를 만들지 않도록.
+4. **Commit and push.** The matched-pair invariant holds by construction —
+   both files come from the same run, so there is nothing to reconcile at
+   runtime.
+   **커밋·푸시.** 매칭 페어 불변식은 구성상 성립 — 두 파일이 같은 실행에서
+   오므로 런타임에 조정할 것이 없음.
 
-#### Overview / 개요
-
-```
-①  Prepare the new matched pair   .pth 와 .pkl 페어 준비
-       ↓
-②  Create a new Release in        realtime-regression-sw에 새 Release 생성
-   realtime-regression-sw         (반드시 새 태그)
-   (MUST be a new tag)
-       ↓
-③  Bump ASSETS_TAG in             ap-prediction workflow의
-   ap-prediction's workflow       ASSETS_TAG 값 변경
-       ↓
-④  Commit + push                  커밋 + 푸시
-       ↓
-⑤  Manually trigger the run,      수동 실행 후 페이지에서
-   verify new checkpoint SHA      Checkpoint SHA 확인
-   on the page
-```
-
-#### Step ① — prepare the files / 파일 준비
-
-- Collect the new `model_best.pth` and `table_stats.pkl` from the
-  retraining run. Any local path is fine — they only need to exist for
-  upload.
-  재학습 실행에서 새 두 파일을 수집. 업로드 가능하면 아무 로컬 경로나 가능.
-- **They must be a matched pair.** Mismatched files (different
-  training runs) cause silently miscalibrated forecasts; there is no
-  runtime check that enforces the pairing. See
-  [runtime-invariants.md §3](https://github.com/eunsu-park/realtime-regression-sw/blob/main/docs/realtime-regression-sw/runtime-invariants.md#normalization-coupling).
-  **반드시 매칭 페어**여야 함. 불일치 시 조용히 miscalibrated 예측이 나오며,
-  런타임 검증이 없음.
-
-#### Step ② — create a new Release / 새 Release 생성
-
-Open **https://github.com/eunsu-park/realtime-regression-sw/releases/new**
-and fill in:
-
-| Field | Value |
-|-------|-------|
-| Tag | **A brand new tag**, e.g. `v0.2.0-assets`. Never reuse the old tag. |
-| Target | `main` (or whichever commit the training code corresponds to) |
-| Title | `v0.2.0 runtime assets` (any descriptive string) |
-| Description | (optional) training data range, val-MAE, hyperparams |
-| Attach binaries | Drag-drop `model_best.pth` and `table_stats.pkl` |
-
-| 필드 | 값 |
-|------|---|
-| Tag | **새로운 태그** (예: `v0.2.0-assets`). 기존 태그 재사용 금지 |
-| Target | `main` (또는 학습 코드 시점의 커밋) |
-| Title | 자유롭게 (예: `v0.2.0 runtime assets`) |
-| Description | (선택) 학습 데이터 범위, val-MAE, 하이퍼파라미터 |
-| Attach binaries | `model_best.pth` + `table_stats.pkl` 드래그 드롭 |
-
-Click **Publish release**.
-
-> ⚠️ **Never reuse the existing tag.** The CI cache key is
-> `release-${ASSETS_TAG}` — overwriting assets under the same tag does
-> not invalidate the cache, so the old files would keep being served
-> indefinitely. Always create a new tag.
->
-> ⚠️ **기존 태그 재사용 절대 금지.** CI 캐시 키가 `release-${ASSETS_TAG}`라
-> 같은 태그에 파일만 덮어써도 캐시가 갱신되지 않아 구 파일이 계속 사용됨.
-> 반드시 새 태그 생성.
-
-#### Step ③ — bump `ASSETS_TAG` / ASSETS_TAG 값 변경
-
-Edit `.github/workflows/forecast.yml` in this repo:
-
-```yaml
-env:
-  ASSETS_TAG: v0.1.0-assets     # old → new
-  REALTIME_REPO: eunsu-park/realtime-regression-sw
-```
-
-becomes / 변경 후:
-
-```yaml
-env:
-  ASSETS_TAG: v0.2.0-assets
-  REALTIME_REPO: eunsu-park/realtime-regression-sw
-```
-
-This is the only line that needs to change.
-변경이 필요한 유일한 라인입니다.
-
-#### Step ④ — commit and push / 커밋 + 푸시
-
-```bash
-cd ap-prediction
-git add .github/workflows/forecast.yml
-git commit -m "Bump ASSETS_TAG to v0.2.0-assets"
-git push
-```
-
-#### Step ⑤ — manually trigger and verify / 수동 실행 + 검증
-
-1. Go to **https://github.com/eunsu-park/ap-prediction/actions** →
-   **Forecast** → **Run workflow**. Leave `now` empty; click
-   **Run workflow**.
-2. Wait 1–2 minutes. Because the cache key changed, the workflow will
-   hit a cache miss and execute the `Download checkpoint + stats`
-   step — confirm this in the run log.
-3. Once the run is green, hard-refresh the deployed page
-   (`Cmd+Shift+R` / `Ctrl+F5`):
-   **https://www.eunsu.me/ap-prediction/**
-4. Check the **"Checkpoint SHA"** field in the metadata block. It
-   should now show the first 12 characters of the new `model_best.pth`
-   SHA256 — different from the previous value.
-
-단계별:
-1. Actions → Forecast → **Run workflow** (`now` 빈 칸, **Run workflow** 확정)
-2. 1–2분 대기. 캐시 키가 바뀌어 `Download checkpoint + stats` 단계가 실행되는지
-   로그에서 확인.
-3. 성공 후 페이지 하드 리프레시.
-4. 메타데이터 블록의 **Checkpoint SHA**가 새 값으로 바뀌었는지 확인.
-
-#### Cache invalidation, explained / 캐시 무효화 원리
-
-The workflow caches the `checkpoint/` directory using
-`actions/cache@v4` with the key `release-${{ env.ASSETS_TAG }}`. The
-cache is a key-value store, keyed on the literal string:
-
-워크플로는 `checkpoint/` 디렉토리를 `actions/cache@v4`로 캐싱하며, 키는
-`release-${{ env.ASSETS_TAG }}` 문자열 그대로입니다:
-
-- `ASSETS_TAG=v0.1.0-assets` → key `release-v0.1.0-assets`
-- `ASSETS_TAG=v0.2.0-assets` → key `release-v0.2.0-assets` (brand new,
-  forces fresh download)
-
-So **changing the tag string is the mechanism that invalidates the
-cache.** You do not need to manually clear anything.
-
-**태그 문자열 변경 자체가 캐시 무효화의 트리거**이며, 별도 캐시 삭제 작업
-불필요.
+> The `sync_to_njit.py` script performs exactly this payload refresh when
+> promoting a validated version from this dev/staging repo to the
+> production `njit-research/ap-prediction` repo: it copies the engine trees,
+> the checkpoint pair, and the web/config payload, applying dev→prod
+> reference rewrites, and never touches `.github/` or the bot-maintained
+> `site/data/`.
+> `sync_to_njit.py`는 검증된 버전을 이 dev/staging 레포에서 프로덕션
+> `njit-research/ap-prediction`으로 승격할 때 바로 이 페이로드 리프레시를
+> 수행합니다 — 엔진 트리·체크포인트 페어·web/config 페이로드를 복사하며
+> dev→prod 참조 재작성 후, `.github/`와 봇 관리 `site/data/`는 건드리지 않음.
 
 #### Rolling back / 롤백
 
-If the new model misbehaves, reverting is symmetric:
+Reverting is a `git revert` of the payload-refresh commit (which restores
+the previous engine + checkpoint pair together), followed by a push and an
+optional manual run. Because the pair is versioned atomically in git, the
+rollback can never desync the weights from the stats.
 
-문제 발생 시 롤백은 대칭적입니다:
-
-```bash
-# Edit .github/workflows/forecast.yml, set ASSETS_TAG back to v0.1.0-assets
-git add .github/workflows/forecast.yml
-git commit -m "Revert ASSETS_TAG to v0.1.0-assets"
-git push
-# Manually trigger the workflow
-```
-
-Old releases remain available unless explicitly deleted, so rollback is
-immediate. Keep the old Release around for at least a few forecast
-cycles after a bump.
-
-Release를 삭제하지 않는 한 즉시 롤백 가능. 교체 후 몇 주기 동안은 구 Release를
-유지 권장.
-
-#### Code changes alongside the weights / 모델 코드도 바뀐 경우
-
-If the retraining also changed the `realtime-regression-sw` source code
-(new architecture, different variable order, etc.), advance the
-submodule pin as well:
-
-재학습 시 `realtime-regression-sw`의 코드(아키텍처, 변수 순서 등)도 함께
-바뀌었다면 submodule pin도 이동시키세요:
-
-```bash
-cd vendor/realtime-regression-sw
-git fetch
-git checkout <new-commit-or-tag>
-cd ../..
-git add vendor/realtime-regression-sw
-git commit -m "Pin realtime-regression-sw to <new-ref>"
-git push
-```
-
-If only the weights changed (same code), no submodule update is
-needed.
-
-가중치만 바뀐 경우(코드 동일)에는 submodule 갱신 불필요.
-
-#### Does the config need to change? / Config는 수정해야 하나?
-
-Short answer: **usually no**. The `configs/realtime.ci.yaml` file
-describes the *model architecture* and the *runtime environment*, not
-the trained weights themselves. So a simple "retrain on more data with
-the same architecture" does **not** require touching the config.
-
-짧은 답: **보통 불필요**. `configs/realtime.ci.yaml`은 **모델 아키텍처**와
-**런타임 환경**을 기술하는 파일이지, 가중치 자체를 기술하지 않습니다. 따라서
-동일 아키텍처로 데이터만 더 넣어서 재학습한 경우에는 config를 손댈 필요가
-**없습니다**.
-
-Here is the full table, by config section:
-섹션별 전체 표:
-
-| Section | Weights only (same architecture) | Architecture/profile change |
-|---------|:-:|:-:|
-| `profile.*`               | unchanged 그대로 | **must update 필수** |
-| `experiment.name`         | unchanged 그대로 | **must update 필수** |
-| `paths.*`                 | unchanged 그대로 | unchanged 그대로 |
-| `sources.*`               | unchanged 그대로 | unchanged 그대로 |
-| `window.lookback_steps`   | unchanged 그대로 | **update if input length changes 입력 길이 변경 시 필수** |
-| `window.forecast_steps`   | unchanged 그대로 | **update if output length changes 출력 길이 변경 시 필수** |
-| `window.boundary_offset_minutes` | unchanged 그대로 | unchanged 그대로 |
-| `runtime.*`               | unchanged 그대로 | unchanged 그대로 |
-| `analysis.*`              | unchanged 그대로 | unchanged 그대로 |
-| `model_provenance.*`      | ⚠️ **recommended 권장** (display-only) | **must update 필수** |
-
-**Why `model_provenance.*` is "recommended" even for same-architecture
-retraining / 동일 아키텍처 재학습에서도 `model_provenance.*` 갱신이 권장되는
-이유**
-
-These three values (`val_loss_at_train`, `val_mae_at_train`,
-`val_rmse_at_train`) are read from config at inference time and copied
-into the output JSON's `model` block (see
-[run_realtime.py:308](https://github.com/eunsu-park/realtime-regression-sw/blob/main/scripts/run_realtime.py#L308)).
-The page renders `val_mae_at_train` under "Val-MAE at train" in the
-metadata block. If you ship new weights without updating these, the
-page will display the **old** MAE alongside the **new** forecasts —
-functionally fine but misleading for visitors.
-
-이 세 값은 추론 시 config에서 읽혀 출력 JSON의 `model` 블록에 그대로 복사되고
-([run_realtime.py:308](https://github.com/eunsu-park/realtime-regression-sw/blob/main/scripts/run_realtime.py#L308)),
-페이지의 "Val-MAE at train"에 표시됩니다. 새 가중치를 적용하면서 이 값을
-갱신하지 않으면 **옛 MAE가 새 예측과 함께 표시**됨 — 기능 문제는 없지만 방문자
-입장에서 오해 소지.
-
-**Concrete examples / 구체적 예시**
-
-- *Retrained `in2d_out12h_gnn_transformer` with 6 more months of data*
-  → no structural config change; optionally update
-  `model_provenance.*` to the new training metrics.
-  동일 아키텍처 `in2d_out12h_gnn_transformer`에 데이터 6개월 추가해서 재학습
-  → 구조 변경 없음. `model_provenance.*`만 선택적 갱신.
-- *Switched profile from `in2d_out12h_gnn_transformer` to
-  `in12h_out12h_gnn_patchtst`* → must update `profile.*`,
-  `experiment.name`, `window.lookback_steps` (96 → 24), and
-  `model_provenance.*`.
-  프로파일을 `in2d_out12h_gnn_transformer` → `in12h_out12h_gnn_patchtst`로
-  전환 → `profile.*`, `experiment.name`, `window.lookback_steps`(96 → 24),
-  `model_provenance.*` 모두 갱신 필요.
-- *Changed forecast horizon from 12h to 6h (new profile
-  `in2d_out6h_gnn_transformer`)* → update `profile.*`,
-  `experiment.name`, `window.forecast_steps` (24 → 12), and
-  `model_provenance.*`.
-  예측 horizon을 12h → 6h로 변경 → `profile.*`, `experiment.name`,
-  `window.forecast_steps`(24 → 12), `model_provenance.*` 갱신.
-
-**Atomicity / 원자성**
-
-When the architecture changes, commit the config change **together
-with** the `ASSETS_TAG` bump in a single commit. Otherwise the
-workflow will temporarily try to run new weights against the old
-architecture (or vice versa) and crash.
-
-아키텍처가 바뀌는 경우에는 config 변경과 `ASSETS_TAG` 변경을 **같은 커밋에
-원자적으로** 반영하세요. 그렇지 않으면 워크플로가 잠시 신·구 불일치 상태에서
-크래시합니다.
-
-#### Common pitfalls / 흔한 실수
-
-| Pitfall | Symptom | Fix |
-|---------|---------|-----|
-| Reused old tag | New weights never take effect; Checkpoint SHA unchanged | Delete the reused-tag Release, recreate with a new tag, bump ASSETS_TAG again |
-| Forgot to change ASSETS_TAG | Same symptom | Bump `ASSETS_TAG` to the new tag and push |
-| Uploaded only the .pth, not the .pkl | Inference fails with stats-file not-found error | Edit the Release, attach the missing `table_stats.pkl` |
-| Mismatched pair (different training runs) | Inference succeeds, but predictions look off (systematic bias) | Re-upload the correct matching pair as a new tag |
-| Submodule advanced but ASSETS_TAG not bumped | Inference may crash if the new code expects different input features than the old weights | Align: bump ASSETS_TAG to a Release whose weights match the submodule's code |
-
-| 실수 | 증상 | 해결 |
-|------|------|-----|
-| 기존 태그 재사용 | 새 가중치 반영 안 됨, Checkpoint SHA 불변 | 해당 Release 삭제, 새 태그로 재생성, ASSETS_TAG 다시 갱신 |
-| ASSETS_TAG 변경 누락 | 동일 증상 | `ASSETS_TAG`를 새 태그로 변경 후 푸시 |
-| .pth만 업로드, .pkl 누락 | stats-file not-found 에러로 추론 실패 | Release 편집, `table_stats.pkl` 추가 첨부 |
-| 페어 불일치 (다른 학습 실행) | 추론 성공하지만 예측에 체계적 편향 | 올바른 페어로 새 태그 재업로드 |
-| Submodule은 갱신했는데 ASSETS_TAG는 그대로 | 새 코드가 구 가중치와 입력 feature가 달라 추론 크래시 가능 | submodule과 일치하는 가중치를 가진 Release로 ASSETS_TAG 정렬 |
+롤백은 페이로드 리프레시 커밋의 `git revert`(이전 엔진 + 체크포인트 페어를
+함께 복원) 후 push, 필요 시 수동 실행. 페어가 git에 원자적으로 버전 관리되므로
+롤백이 가중치와 통계를 어긋나게 할 수 없음.
 
 ---
 
@@ -708,14 +539,15 @@ no layout. They just happen to live under the same domain.
 
 | Path | Purpose |
 |------|---------|
-| [`.github/workflows/forecast.yml`](../.github/workflows/forecast.yml) | Cron-triggered build+deploy pipeline |
-| [`configs/realtime.ci.yaml`](../configs/realtime.ci.yaml) | CI path overrides for `realtime-regression-sw` (checkpoint, stats, event_dir, results_dir all relative to submodule root) |
-| [`scripts/update_site_data.py`](../scripts/update_site_data.py) | Post-process: read latest forecast JSON, embed 96-step observed history from the event CSV, write `site/data/latest.json` + `status.json` |
+| [`.github/workflows/forecast.yml`](../.github/workflows/forecast.yml) | Cron-triggered build+deploy pipeline (plain checkout, no submodules/Release) |
+| [`configs/realtime.ci.yaml`](../configs/realtime.ci.yaml) | CI path overrides for the inlined engine (checkpoint, stats, event_dir, results_dir all relative to `vendor/realtime-regression-sw/`) + active profile + model provenance |
+| [`scripts/update_site_data.py`](../scripts/update_site_data.py) | Post-process: read latest forecast JSON, embed 96-step observed history from the event CSV, write `site/data/latest.json` + `status.json` + `forecast_history.json`/`.csv` (don't-downgrade) |
+| [`scripts/sync_to_njit.py`](../scripts/sync_to_njit.py) | Promote a validated payload (engine + checkpoint + web/config) from this dev/staging repo to production `njit-research/ap-prediction` |
 | [`site/index.html`](../site/index.html) | Static page shell. Inline CSS. Loads Chart.js v4 + date-fns adapter from jsDelivr CDN |
-| [`site/main.js`](../site/main.js) | Fetches `latest.json` + `status.json`, fills metadata, paints banner, renders two-dataset chart (history gray + forecast blue) with bridge dashed line at anchor, UTC-formatted x-axis ticks, tooltips showing both UTC and KST |
+| [`site/main.js`](../site/main.js) | Fetches `latest.json` + `status.json`, fills metadata, paints banner, renders history + forecast + MCD band with a "now" divider at the anchor, UTC-formatted x-axis ticks, tooltips showing both UTC and KST |
 | [`site/data/latest.json`](../site/data/latest.json) | Most recent forecast payload (auto-committed by the workflow) |
 | [`site/data/status.json`](../site/data/status.json) | Pipeline health (auto-committed by the workflow) |
-| [`vendor/realtime-regression-sw/`](../vendor/realtime-regression-sw) | Git submodule — pinned commit of the inference repo |
+| [`vendor/realtime-regression-sw/`](../vendor/realtime-regression-sw) | **Vendored in-tree directory** — the inlined inference engine (`src/`, `scripts/`) + committed `checkpoint/model_best.pth` and `table_stats.pkl`. Not a git submodule. |
 
 ### 8.2 `latest.json` schema / 스키마
 
@@ -724,12 +556,12 @@ no layout. They just happen to live under the same domain.
   "run_timestamp_utc":    "2026-04-25T00:00:07Z",
   "anchor_timestamp_utc": "2026-04-24T14:30:00Z",
   "model": {
-    "profile":          "in2d_out12h_gnn_transformer",
+    "profile":          "in12h_out12h_gnn_patchtst",
     "checkpoint_path":  "./checkpoint/model_best.pth",
     "checkpoint_sha256":"d5d87bcbf905...",
-    "val_loss_at_train": 0.2727,
-    "val_mae_at_train":  0.3840,
-    "val_rmse_at_train": 0.4960
+    "val_loss_at_train": 0.245454,
+    "val_mae_at_train":  0.3781,
+    "val_rmse_at_train": 0.4956
   },
   "input": {
     "event_csv": "/.../dataset/events/20260424143000.csv",
@@ -770,10 +602,10 @@ no layout. They just happen to live under the same domain.
 ## 9. Cost and quota / 비용과 할당량
 
 - GitHub Actions Linux runner minutes are **unlimited and free for
-  public repos**. Our 30-min cron uses ~720 minutes per month; cost is
-  $0.
-  공개 레포의 Linux 러너 분은 **무제한 무료**. 30분 주기 × 월 약 720분, 비용
-  $0.
+  public repos**. The 10-min cron uses roughly 2,000–4,000 runner minutes
+  per month depending on how many attempts fire; cost is $0.
+  공개 레포의 Linux 러너 분은 **무제한 무료**. 10분 주기는 시도 수에 따라
+  월 약 2,000–4,000 러너 분 사용, 비용 $0.
 - GitHub Pages bandwidth: 100 GB/month soft limit per user. Our static
   site is a few hundred KB; nowhere near the limit.
   GitHub Pages 대역폭: 사용자당 월 100 GB soft limit. 정적 사이트가 수백 KB
@@ -787,34 +619,33 @@ no layout. They just happen to live under the same domain.
 ## 10. Known limitations / 알려진 한계
 
 1. **Scheduler drift** — GitHub Actions cron is best-effort. A run
-   scheduled for 14:33 UTC may actually start anywhere from 14:33 to
-   15:00+. The anchor computation handles this gracefully by always
-   aligning to the most recent 30-min boundary, but the "last updated"
-   timestamp on the page reflects the actual run time, not the slot
-   time.
-   GitHub Actions cron은 best-effort. 14:33 예정이 14:33~15:00 사이 언제든
-   시작 가능. Anchor는 항상 최근 30분 경계 정렬로 대응하지만, 페이지의
-   "last updated"는 실제 실행 시각을 반영.
-2. **Public weights exposure** — `model_best.pth` is posted as a public
-   Release asset. Anyone can download and reuse the weights. Acceptable
-   for this project (academic/personal); if sensitivity ever changes,
-   move the Release to a private repo and add a fine-grained PAT to the
-   workflow.
-   공개 가중치 노출 — `model_best.pth`는 공개 Release로 게시됨. 민감도가
-   변경되면 private 레포 + fine-grained PAT로 전환 가능.
-3. **Single-point failure on stats-checkpoint pairing** — if the
-   `ASSETS_TAG` env and the actual Release contents diverge (e.g. you
-   upload a new `.pth` but forget to upload a matching `.pkl`), the
-   model will silently produce miscalibrated outputs. There is no
-   runtime check that the two match.
-   stats-checkpoint 페어 단일 실패점 — `ASSETS_TAG` env와 실제 Release 내용이
-   어긋나면(예: 새 `.pth` 업로드 시 `.pkl`을 빠뜨림) 조용히 miscalibrated
-   출력. 런타임 검증 없음.
-4. **No historical archive on the page** — `latest.json` is the only
-   data the page shows. Past forecasts are not accessible from the UI
-   (they still exist in git history of `site/data/latest.json`).
-   페이지 히스토리 아카이브 없음 — `latest.json`이 유일한 데이터. 과거 예측은
-   UI에서 접근 불가(git 히스토리에는 존재).
+   scheduled for :18 UTC may start late, and some attempts may be dropped
+   entirely under load. The three-attempts-per-anchor design absorbs most
+   of this, and the anchor computation always aligns to the most recent
+   30-min boundary, but the "last updated" timestamp on the page reflects
+   the actual run time, not the slot time.
+   GitHub Actions cron은 best-effort. :18 예정이 늦게 시작하거나 부하 시 일부
+   시도가 드롭될 수 있음. anchor당 3회 시도가 이를 대부분 흡수하고 anchor는
+   항상 최근 30분 경계에 정렬되지만, 페이지의 "last updated"는 실제 실행
+   시각을 반영.
+2. **Matched-pair invariant is process-enforced** — `model_best.pth` and
+   `table_stats.pkl` must come from the same training run; there is no
+   runtime check that they match. Committing them together in-tree and
+   always swapping them as a pair (§5) makes a mismatch a git-review-visible
+   mistake rather than a silent runtime one, but the guarantee is still
+   procedural, not automatic.
+   매칭 페어 불변식은 절차로 보장 — `model_best.pth`와 `table_stats.pkl`은
+   동일 학습 실행에서 와야 하며 런타임 검증 없음. in-tree로 함께 커밋하고
+   항상 페어로 교체(§5)하면 불일치가 조용한 런타임 오류가 아니라 git 리뷰에서
+   보이는 실수가 되지만, 보장은 여전히 절차적.
+3. **No historical archive on the page** — the page renders `latest.json`
+   plus the recent observed history. Longer-term forecasts are accumulated
+   in `forecast_history.json`/`.csv` but are not yet surfaced in the UI
+   (kept for future re-exposure; also present in git history of
+   `site/data/`).
+   페이지 히스토리 아카이브 없음 — 페이지는 `latest.json`과 최근 관측 history를
+   렌더링. 장기 예보는 `forecast_history.json`/`.csv`에 누적되지만 아직 UI에
+   노출되지 않음(추후 재노출용, git 히스토리에도 존재).
 
 ---
 
@@ -823,26 +654,23 @@ no layout. They just happen to live under the same domain.
 Candidate next steps, in rough order of effort:
 다음 확장 후보 (대략적 난이도 순):
 
-1. **MCD uncertainty band** — `run_realtime.py` already computes Monte
-   Carlo Dropout samples (disabled in `configs/realtime.ci.yaml`
-   `analysis.mcd.enable: false`). Enable it, propagate the `lower` /
-   `upper` arrays into `latest.json`, and add a shaded band dataset in
-   `main.js`. Minor Chart.js work.
-   MCD 불확실성 밴드 — 이미 계산 가능. 설정만 활성화하고 JSON 전파 후 음영대
-   렌더링.
-2. **Historical accuracy view** — archive each run's `latest.json` to
-   `site/data/history/YYYYMMDD.json`, plus a rolling `history.json`
-   index. The page adds a secondary chart: "forecast-vs-realized MAE
-   over the last 7 days".
-   과거 정확도 뷰 — 매 실행의 예측을 보관하고, 7일 롤링 MAE 차트 추가.
-3. **hp30 as a second target** — currently only ap30 is on the page.
-   The model also has variants predicting hp30 directly. Add a second
-   line to the chart with a toggle.
-   hp30 이중 타겟 — ap30만 표시 중. hp30 예측 라인 추가.
-4. **Attention heatmap** — `plot_attention` exists in the sibling repo
-   but emits PNG. For interactive use, serialize attention weights to
-   JSON and render with a canvas heatmap library.
-   Attention 히트맵 — 현재 PNG 생성. JSON 직렬화 후 인터랙티브 히트맵 렌더링.
+1. **Historical accuracy view** — `forecast_history.json`/`.csv` already
+   archive each anchor's first-horizon forecast with its status. Surface a
+   secondary chart: "forecast-vs-realized MAE over the last N days" by
+   joining archived forecasts against the later observed ap30.
+   과거 정확도 뷰 — `forecast_history.json`/`.csv`가 이미 각 anchor의
+   첫-horizon 예보와 status를 아카이브. 이후 관측 ap30과 조인해 "최근 N일
+   forecast-vs-realized MAE" 보조 차트 추가.
+2. **hp30 as a second target** — currently only ap30 is on the page. The
+   engine also supports hp30 variants. Add a second line to the chart with a
+   toggle.
+   hp30 이중 타겟 — ap30만 표시 중. 엔진은 hp30 변형도 지원. 토글로 두 번째
+   라인 추가.
+3. **Attention heatmap** — `plot_attention` exists in the engine but emits
+   PNG. For interactive use, serialize attention weights to JSON and render
+   with a canvas heatmap library.
+   Attention 히트맵 — 엔진에 `plot_attention`이 있으나 PNG 생성. JSON 직렬화
+   후 인터랙티브 히트맵 렌더링.
 
 Each of these would be additive — none require restructuring the
 current pipeline.

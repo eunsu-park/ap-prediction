@@ -83,7 +83,8 @@ def _locate_event_csv(data: dict) -> Path | None:
     """Find the event CSV referenced by the forecast JSON.
 
     Prefers the absolute path recorded in `input.event_csv`, falls back to
-    `dataset/events/{anchor_stem}.csv` under the submodule.
+    `dataset/events/{anchor_stem}.csv` under the vendored engine dir
+    (vendor/realtime-regression-sw/).
     """
     recorded = data.get("input", {}).get("event_csv")
     if recorded:

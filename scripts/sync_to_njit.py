@@ -4,8 +4,8 @@
 This is the recurring "dev -> prod" promotion tool for the two-tier operating
 model documented in docs/realtime-regression-sw/njit-consolidation-plan.md:
 
-    eunsu-park/ap-prediction (+ realtime-regression-sw submodule + Release weights)
-        |   develop / validate here  (distributed structure)
+    eunsu-park/ap-prediction (self-contained: engine + weights vendored in-tree)
+        |   develop / validate here  (dev/staging tier)
         v   promotion (this script)
     njit-research/ap-prediction      (single self-contained repo)
 
@@ -104,19 +104,21 @@ def ensure_source_ready(source: Path) -> None:
         source: Root of the eunsu-park ap-prediction checkout.
 
     Raises:
-        SystemExit: If the engine submodule is unpopulated or weights are missing.
+        SystemExit: If the vendored engine source or the weights are missing.
     """
     engine_src = source / ENGINE_ROOT / "src"
     if not engine_src.is_dir():
         raise SystemExit(
-            f"engine source not found at {engine_src} — run "
-            "`git submodule update --init --recursive` in the source first."
+            f"engine source not found at {engine_src} — the engine is vendored "
+            "in-tree under vendor/realtime-regression-sw/; check out the source "
+            "repo fully first."
         )
     for rel in PAYLOAD_BINARIES:
         if not (source / rel).is_file():
             raise SystemExit(
-                f"weight file missing: {source / rel} — download the pinned "
-                "Release assets into the source checkpoint dir first."
+                f"weight file missing: {source / rel} — the checkpoint is "
+                "committed in-tree under vendor/realtime-regression-sw/checkpoint/; "
+                "check out the source repo fully first."
             )
 
 
