@@ -1,7 +1,6 @@
 # ap-prediction
 
 Public dashboard for 12-hour ap30 geomagnetic index forecasts.
-공개 대시보드: 12시간 ap30 지자기 지수 예측.
 
 - Deployed site: https://www.eunsu.me/ap-prediction/
   (also at https://eunsu-park.github.io/ap-prediction/)
@@ -9,14 +8,14 @@ Public dashboard for 12-hour ap30 geomagnetic index forecasts.
   (engine developed in [eunsu-park/geoindex-realtime](https://github.com/eunsu-park/geoindex-realtime))
 - Update cadence: a new anchor every 30 min; the cron fires every 10 min with
   three attempts per anchor (cron `8,18,28,38,48,58 * * * *`)
-- Architecture details / 상세 설계: [docs/architecture.md](docs/architecture.md)
+- Architecture details: [docs/architecture.md](docs/architecture.md)
 
 This repo is **self-contained** (same mechanism as the production
 `njit-research/ap-prediction`): the engine is inlined and the checkpoint
 (`model_best.pth` + `table_stats.pkl`) is committed in-tree, so a run needs only
 a checkout — no submodule, no GitHub Release download.
 
-## How it works (동작 원리)
+## How it works
 
 1. `.github/workflows/forecast.yml` runs on a 10-min cron (three attempts per
    30-min anchor; a later attempt only overwrites an earlier one at equal-or-
@@ -32,7 +31,7 @@ a checkout — no submodule, no GitHub Release download.
 5. `site/index.html` fetches `data/latest.json` on load and renders a Chart.js
    line plot of the 24-step (12-hour) ap30 forecast.
 
-## Repository layout (저장소 구조)
+## Repository layout
 
 ```
 ap-prediction/
@@ -50,7 +49,7 @@ ap-prediction/
 └── README.md
 ```
 
-## One-time setup (최초 설정)
+## One-time setup
 
 ### Enable GitHub Pages
 
@@ -59,7 +58,7 @@ Settings → Pages → Build and deployment → Source: **GitHub Actions**.
 No asset upload or submodule step is needed — the engine and checkpoint are
 committed in-tree.
 
-## Updating the engine / model (엔진·모델 갱신)
+## Updating the engine / model
 
 Because the engine and weights are vendored in-tree, an upgrade is a payload
 refresh, not a submodule bump:
