@@ -154,8 +154,9 @@ upstream feed to browser happens:
 
 ### 3.1 Input
 
-- **NOAA SWPC real-time solar wind** — plasma (density, speed, temp) and
-  IMF magnetic field (Bx/By/Bz/Bt). 7-day rolling JSON.
+- **NOAA SWPC RTSW real-time solar wind** — plasma (density, speed, temp) and
+  IMF magnetic field (Bx/By/Bz/Bt) from the SOLAR1 primary (ACE/IMAP fill gaps
+  only where SOLAR1 is missing). ~24-hour rolling JSON.
 - **GFZ Potsdam Hp30/ap30 nowcast** — 30-min geomagnetic index observed
   values. Text file, published within minutes of each 30-min boundary.
 
