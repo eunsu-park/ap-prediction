@@ -1,19 +1,5 @@
 [
   {
-    "target_timestamp_utc": "2026-08-18T09:00:00Z",
-    "ap30": 26.2,
-    "lower": 17.9,
-    "upper": 36.3,
-    "status": "ok"
-  },
-  {
-    "target_timestamp_utc": "2026-08-18T09:30:00Z",
-    "ap30": 22.9,
-    "lower": 15.3,
-    "upper": 33.4,
-    "status": "ok"
-  },
-  {
     "target_timestamp_utc": "2026-08-18T10:00:00Z",
     "ap30": 24.0,
     "lower": 15.1,
@@ -676,6 +662,20 @@
     "ap30": 15.8,
     "lower": 13.2,
     "upper": 19.5,
+    "status": "ok"
+  },
+  {
+    "target_timestamp_utc": "2026-08-20T09:30:00Z",
+    "ap30": 0,
+    "lower": 0,
+    "upper": 0,
+    "status": null
+  },
+  {
+    "target_timestamp_utc": "2026-08-20T10:00:00Z",
+    "ap30": 12.6,
+    "lower": 10.3,
+    "upper": 15.3,
     "status": "ok"
   }
 ]
