@@ -12,7 +12,7 @@ status classification, the retry rule), see
 
 ## 1. Overview
 
-`ap-prediction` publishes a live 12-hour ap30 geomagnetic-index forecast
+`ap-prediction` publishes a live 6-hour ap30 geomagnetic-index forecast
 chart at `https://www.eunsu.me/ap-prediction/`. A GitHub Actions cron
 re-runs the inference pipeline every 10 minutes (three attempts per 30-min
 anchor), writes a fresh `latest.json`, and deploys the updated static site
@@ -113,10 +113,10 @@ upstream feed to browser happens:
                 │  1. Fetch the three HTTP feeds (requests + retry)   │
                 │  2. Aggregate 1-min → 30-min bins                   │
                 │  3. Compute anchor t_end = floor(now - 2min, 30min) │
-                │  4. Build the 24-row × 22-col event window (impute) │
+                │  4. Build the 12-row × 22-col event window (impute) │
                 │  5. Normalize with table_stats.pkl                  │
-                │  6. Run model_best.pth (GNN + PatchTST, CPU)        │
-                │  7. Denormalize; emit 24-step ap30 forecast + MCD   │
+                │  6. Run model_best.pth (GNN + Transformer, CPU)     │
+                │  7. Denormalize; emit 12-step ap30 forecast + PI    │
                 │  8. Write JSON + CSV to results/predictions/…       │
                 └──────────────────────┬──────────────────────────────┘
                                        │
@@ -179,13 +179,15 @@ for the full imputation policy.
 
 ### 3.3 Model I/O shape
 
-Active profile: **`in12h_out12h_gnn_patchtst`** — an 8-node GNN with a
-PatchTST temporal backend.
+Active profile: **`in6h_out6h_gnn_transformer`** — an 8-node GNN with a
+Transformer temporal backend, retrained by the NJIT co-author with a focal
+Huber loss and storm-rise oversampling (checkpoint
+`gnn_transformer_oversample_dup_2_4_8_best.pt`, 2026-09-16).
 
 | Tensor | Shape | Description |
 |--------|-------|-------------|
-| Input  | `(1, 24, 22)` | 1 batch × 24 timesteps (12 hours × 30-min) × 22 vars |
-| Output | `(1, 24, 1)`  | 1 batch × 24 timesteps (12 hours × 30-min) × 1 var (ap30) |
+| Input  | `(1, 12, 22)` | 1 batch × 12 timesteps (6 hours × 30-min) × 22 vars |
+| Output | `(1, 12, 1)`  | 1 batch × 12 timesteps (6 hours × 30-min) × 1 var (ap30) |
 
 22 input variables: 21 solar-wind parameters (v/np/t ×avg/min/max,
 Bx/By/Bz/Bt ×avg/min/max) + ap30.
@@ -194,7 +196,7 @@ The input ordering and normalization schema are **safety-critical
 invariants** — the input window and the `table_stats.pkl` used to normalize
 it must match the trained model.
 
-> Note: the 24-row figure above is the **model input window** (12 h). The
+> Note: the 12-row figure above is the **model input window** (6 h). The
 > `history` array embedded into `latest.json` for the chart is a separate,
 > longer 96-row (48 h) slice of observed ap30 used only for display.
 
@@ -430,7 +432,7 @@ no layout. They just happen to live under the same domain.
   "run_timestamp_utc":    "2026-04-25T00:00:07Z",
   "anchor_timestamp_utc": "2026-04-24T14:30:00Z",
   "model": {
-    "profile":          "in12h_out12h_gnn_patchtst",
+    "profile":          "in6h_out6h_gnn_transformer",
     "checkpoint_path":  "./checkpoint/model_best.pth",
     "checkpoint_sha256":"d5d87bcbf905...",
     "val_loss_at_train": 0.245454,
@@ -446,7 +448,7 @@ no layout. They just happen to live under the same domain.
     },
     "missing_data_filled_fraction": 0.017
   },
-  "forecast": [                                // 24 entries = 12 hours
+  "forecast": [                                // 12 entries = 6 hours
     {"horizon_steps":1, "horizon_minutes":30, "target_timestamp_utc":"...", "ap30":7.2},
     ...
   ],

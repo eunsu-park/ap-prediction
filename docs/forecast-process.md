@@ -41,8 +41,8 @@ If a feed cannot be retrieved after its retries, the run exits with code **2**
 
 ## 3. Preprocessing and missing-data handling
 
-1. Resample the 1-minute feed to 30-minute bins and align onto the 24-step
-   (12-hour) input window ending at the anchor.
+1. Resample the 1-minute feed to 30-minute bins and align onto the 12-step
+   (6-hour) input window ending at the anchor.
 2. **Impute missing values ("always emit" policy):**
    - **Forward-fill** — carry the last available value forward (up to 48 steps),
      which covers gaps at the recent/tail end of the window.
@@ -61,8 +61,10 @@ The fraction of cells that had to be imputed is recorded as
 ## 4. Inference
 
 Normalize the window with the training statistics, run the model
-(GNN + PatchTST), compute a Monte Carlo Dropout (MCD) uncertainty interval
-(±2σ), denormalize, and write the 24-step forecast (JSON + CSV). The run exits
+(GNN + Transformer), compute the 95 % prediction interval μ ± 1.96 σ_pred with
+σ_pred² = σ_MC² (Monte Carlo dropout, 100 passes) + σ_residual² (the
+checkpoint's validation residual variance, `analysis.mcd.noise_variance`),
+denormalize, and write the 12-step forecast (JSON + CSV). The run exits
 with code **0**.
 
 ## 5. Status classification
@@ -98,8 +100,8 @@ upgraded to `ok` if a later attempt gets clean data.
 The job itself always succeeds (failures are handled in software), so the static
 site is re-deployed every run. The page shows a status **banner** — green
 (current), yellow (data gap / stale / heavily imputed), or red (error) — and the
-**plot**: observed ap30 history, the current 12-hour forecast with its MCD
-uncertainty band, and a vertical "now" divider.
+**plot**: observed ap30 history, the current 6-hour forecast with its 95 %
+prediction interval, and a vertical "now" divider.
 
 ## 8. Banner messages
 
