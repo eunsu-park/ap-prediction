@@ -1,54 +1,5 @@
 [
   {
-    "target_timestamp_utc": "2026-09-22T19:30:00Z",
-    "ap30": 1.9,
-    "lower": 0.0,
-    "upper": 26.6,
-    "status": "ok"
-  },
-  {
-    "target_timestamp_utc": "2026-09-22T20:00:00Z",
-    "ap30": 0,
-    "lower": 0,
-    "upper": 0,
-    "status": null
-  },
-  {
-    "target_timestamp_utc": "2026-09-22T20:30:00Z",
-    "ap30": 0,
-    "lower": 0,
-    "upper": 0,
-    "status": null
-  },
-  {
-    "target_timestamp_utc": "2026-09-22T21:00:00Z",
-    "ap30": 0,
-    "lower": 0,
-    "upper": 0,
-    "status": null
-  },
-  {
-    "target_timestamp_utc": "2026-09-22T21:30:00Z",
-    "ap30": 0,
-    "lower": 0,
-    "upper": 0,
-    "status": null
-  },
-  {
-    "target_timestamp_utc": "2026-09-22T22:00:00Z",
-    "ap30": 0,
-    "lower": 0,
-    "upper": 0,
-    "status": null
-  },
-  {
-    "target_timestamp_utc": "2026-09-22T22:30:00Z",
-    "ap30": 1.5,
-    "lower": 0.0,
-    "upper": 26.1,
-    "status": "ok"
-  },
-  {
     "target_timestamp_utc": "2026-09-22T23:00:00Z",
     "ap30": 0,
     "lower": 0,
@@ -673,9 +624,58 @@
   },
   {
     "target_timestamp_utc": "2026-09-24T19:30:00Z",
-    "ap30": 0,
+    "ap30": 0.0,
     "lower": 0,
     "upper": 0,
     "status": "failed"
+  },
+  {
+    "target_timestamp_utc": "2026-09-24T20:00:00Z",
+    "ap30": 0,
+    "lower": 0,
+    "upper": 0,
+    "status": null
+  },
+  {
+    "target_timestamp_utc": "2026-09-24T20:30:00Z",
+    "ap30": 0,
+    "lower": 0,
+    "upper": 0,
+    "status": null
+  },
+  {
+    "target_timestamp_utc": "2026-09-24T21:00:00Z",
+    "ap30": 0,
+    "lower": 0,
+    "upper": 0,
+    "status": null
+  },
+  {
+    "target_timestamp_utc": "2026-09-24T21:30:00Z",
+    "ap30": 0,
+    "lower": 0,
+    "upper": 0,
+    "status": null
+  },
+  {
+    "target_timestamp_utc": "2026-09-24T22:00:00Z",
+    "ap30": 0,
+    "lower": 0,
+    "upper": 0,
+    "status": null
+  },
+  {
+    "target_timestamp_utc": "2026-09-24T22:30:00Z",
+    "ap30": 0,
+    "lower": 0,
+    "upper": 0,
+    "status": null
+  },
+  {
+    "target_timestamp_utc": "2026-09-24T23:00:00Z",
+    "ap30": 13.7,
+    "lower": 0.0,
+    "upper": 38.4,
+    "status": "ok"
   }
 ]
